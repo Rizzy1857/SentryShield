@@ -1,0 +1,222 @@
+[
+  {
+    "id": "MFG-VUL-001",
+    "product_name": "Apache Log4j",
+    "affected_versions": "[{\"min\": \"2.0.0\", \"max\": \"2.17.0\", \"include_min\": true, \"include_max\": false}]",
+    "cvss_score": 10.0,
+    "severity": "CRITICAL",
+    "description": "Log4Shell: Apache Log4j2 JNDI lookup allows remote code execution. Attacker sends crafted log message to trigger arbitrary code execution on servers using Log4j.",
+    "remediation": "Update Log4j to 2.17.1+ (Java 8), 2.12.4+ (Java 7), or 2.3.2+ (Java 6). Remove JndiLookup class: zip -q -d log4j-core-*.jar org/apache/logging/log4j/core/lookup/JndiLookup.class",
+    "source": "CURATED",
+    "first_seen": "2021-12-10"
+  },
+  {
+    "id": "MFG-VUL-002",
+    "product_name": "Apache Log4j",
+    "affected_versions": "[{\"min\": \"2.0.0\", \"max\": \"2.17.0\", \"include_min\": true, \"include_max\": false}]",
+    "cvss_score": 9.0,
+    "severity": "CRITICAL",
+    "description": "CVE-2021-45046: Log4j2 JNDI lookup pattern allows crafted data to cause denial of service and remote code execution in non-default configurations.",
+    "remediation": "Update Log4j to 2.17.1+. Set log4j2.formatMsgNoLookups=true as workaround.",
+    "source": "CURATED",
+    "first_seen": "2021-12-14"
+  },
+  {
+    "id": "MFG-VUL-003",
+    "product_name": "OpenSSL",
+    "affected_versions": "[{\"min\": \"1.0.1\", \"max\": \"1.0.1g\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 7.5,
+    "severity": "HIGH",
+    "description": "Heartbleed: OpenSSL TLS heartbeat extension allows attackers to read memory contents, potentially exposing private keys, passwords, and session tokens.",
+    "remediation": "Update OpenSSL to 1.0.1g or later. Revoke and reissue SSL certificates after patching.",
+    "source": "CURATED",
+    "first_seen": "2014-04-07"
+  },
+  {
+    "id": "MFG-VUL-004",
+    "product_name": "Windows SMB",
+    "affected_versions": "[{\"min\": \"6.0\", \"max\": \"6.3\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 9.3,
+    "severity": "CRITICAL",
+    "description": "EternalBlue (MS17-010): Windows SMBv1 remote code execution vulnerability. Exploited by WannaCry and NotPetya ransomware. Critical risk for legacy Windows HMIs.",
+    "remediation": "Apply MS17-010 patch. Disable SMBv1: Set-SmbServerConfiguration -EnableSMB1Protocol $false. Block TCP 445 at network perimeter.",
+    "source": "CURATED",
+    "first_seen": "2017-03-14"
+  },
+  {
+    "id": "MFG-VUL-005",
+    "product_name": "Windows Remote Desktop Protocol",
+    "affected_versions": "[{\"min\": \"5.0\", \"max\": \"6.2\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 9.8,
+    "severity": "CRITICAL",
+    "description": "BlueKeep (CVE-2019-0708): Pre-authentication RCE in Windows RDP. Wormable — can spread without user interaction. Affects Windows 7, XP, Server 2008 R2.",
+    "remediation": "Apply KB4499175 (Win7) or KB4499180 (Server 2008 R2). Enable NLA. Block port 3389 externally. Disable RDP on HMIs if not required.",
+    "source": "CURATED",
+    "first_seen": "2019-05-14"
+  },
+  {
+    "id": "MFG-VUL-006",
+    "product_name": "Siemens WinCC",
+    "affected_versions": "[{\"min\": \"7.0\", \"max\": \"7.4\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 8.5,
+    "severity": "HIGH",
+    "description": "WinCC SCADA SQL injection: Siemens WinCC OA allows unauthenticated SQL injection via the web interface, potentially allowing full database compromise.",
+    "remediation": "Apply Siemens Security Advisory SSA-168644. Update WinCC to 7.5+. Enable Windows Authentication mode. Restrict web interface access.",
+    "source": "CURATED",
+    "first_seen": "2020-09-08"
+  },
+  {
+    "id": "MFG-VUL-007",
+    "product_name": "Rockwell FactoryTalk",
+    "affected_versions": "[{\"min\": \"2.0\", \"max\": \"11.0\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 8.1,
+    "severity": "HIGH",
+    "description": "FactoryTalk Services Platform authentication bypass: Allows unauthenticated remote access to HMI services via crafted requests to the directory service.",
+    "remediation": "Apply Rockwell patch PN1538. Implement network segmentation. Restrict directory service to trusted IP ranges only.",
+    "source": "CURATED",
+    "first_seen": "2021-06-15"
+  },
+  {
+    "id": "MFG-VUL-008",
+    "product_name": "Schneider Electric Modicon",
+    "affected_versions": "[{\"min\": \"1.0\", \"max\": \"3.0\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 9.0,
+    "severity": "CRITICAL",
+    "description": "Modicon M340 PLC firmware authentication bypass allows unauthenticated reading/writing of PLC memory, potentially causing process disruption or safety failures.",
+    "remediation": "Apply Schneider firmware update. Enable authentication on Modbus/TCP. Implement Modbus firewall to restrict write commands.",
+    "source": "CURATED",
+    "first_seen": "2020-03-10"
+  },
+  {
+    "id": "MFG-VUL-009",
+    "product_name": "Python",
+    "affected_versions": "[{\"min\": \"3.0.0\", \"max\": \"3.9.6\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 7.5,
+    "severity": "HIGH",
+    "description": "CVE-2021-29921: Python ipaddress module improper input validation allows bypass of IP address filtering controls.",
+    "remediation": "Update Python to 3.9.7+ or 3.10.0+. Validate IP addresses using additional checks in application code.",
+    "source": "CURATED",
+    "first_seen": "2021-05-06"
+  },
+  {
+    "id": "MFG-VUL-010",
+    "product_name": "Microsoft Exchange Server",
+    "affected_versions": "[{\"min\": \"15.0.0\", \"max\": \"15.2.986\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 9.8,
+    "severity": "CRITICAL",
+    "description": "ProxyShell (CVE-2021-34473): Microsoft Exchange pre-auth RCE via URL normalization. Allows unauthenticated arbitrary code execution as SYSTEM.",
+    "remediation": "Apply CU21 for Exchange 2016 or CU11 for Exchange 2019. Apply KB5001779. Restrict EWS access.",
+    "source": "CURATED",
+    "first_seen": "2021-04-13"
+  },
+  {
+    "id": "MFG-VUL-011",
+    "product_name": "Adobe Acrobat Reader",
+    "affected_versions": "[{\"min\": \"20.0\", \"max\": \"21.007.20095\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 8.8,
+    "severity": "HIGH",
+    "description": "CVE-2021-39863: Buffer overflow in Adobe Acrobat Reader allows arbitrary code execution via maliciously crafted PDF files. Common supply-chain attack vector.",
+    "remediation": "Update to Adobe Acrobat Reader 2021.007.20099 or later. Enable Protected Mode. Block JavaScript in PDFs in enterprise settings.",
+    "source": "CURATED",
+    "first_seen": "2021-09-14"
+  },
+  {
+    "id": "MFG-VUL-012",
+    "product_name": "WinRAR",
+    "affected_versions": "[{\"min\": \"1.0\", \"max\": \"5.70\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 7.8,
+    "severity": "HIGH",
+    "description": "CVE-2018-20250: WinRAR ACE arbitrary file write vulnerability. Crafted archive extracts malicious files to Windows Startup folder for persistence.",
+    "remediation": "Update WinRAR to 5.71+. Block ACE file extraction via Group Policy. Consider using 7-Zip instead.",
+    "source": "CURATED",
+    "first_seen": "2019-02-05"
+  },
+  {
+    "id": "MFG-VUL-013",
+    "product_name": "7-Zip",
+    "affected_versions": "[{\"min\": \"0.0\", \"max\": \"21.06\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 7.8,
+    "severity": "HIGH",
+    "description": "CVE-2022-29072: 7-Zip privilege escalation via heap overflow in 7-Zip Help window. Allows local privilege escalation to SYSTEM.",
+    "remediation": "Update 7-Zip to 22.00 or later.",
+    "source": "CURATED",
+    "first_seen": "2022-04-15"
+  },
+  {
+    "id": "MFG-VUL-014",
+    "product_name": "Java Runtime Environment",
+    "affected_versions": "[{\"min\": \"8.0.0\", \"max\": \"8.0.311\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 8.1,
+    "severity": "HIGH",
+    "description": "Multiple Java 8 RCE vulnerabilities exploitable via deserialization. Java is commonly installed as dependency of SCADA/HMI software.",
+    "remediation": "Update Java 8 to 8u321 or later. Apply quarterly Oracle CPU updates. Disable Java browser plugin.",
+    "source": "CURATED",
+    "first_seen": "2021-10-19"
+  },
+  {
+    "id": "MFG-VUL-015",
+    "product_name": "TeamViewer",
+    "affected_versions": "[{\"min\": \"14.0\", \"max\": \"15.17\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 8.8,
+    "severity": "HIGH",
+    "description": "CVE-2020-13699: TeamViewer authentication bypass via custom URI handler allows man-in-the-middle attacks during VPN sessions. Remote access tools on OT machines are high risk.",
+    "remediation": "Update TeamViewer to 15.18+. Restrict TeamViewer to approved remote IT sessions only. Remove from HMIs if not required.",
+    "source": "CURATED",
+    "first_seen": "2020-08-11"
+  },
+  {
+    "id": "MFG-VUL-016",
+    "product_name": "VNC Server",
+    "affected_versions": "[{\"min\": \"6.0\", \"max\": \"6.7.1\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 9.8,
+    "severity": "CRITICAL",
+    "description": "CVE-2022-41975: RealVNC Server privilege escalation on Windows allows local attacker to gain SYSTEM-level access. VNC commonly deployed on plant HMIs.",
+    "remediation": "Update RealVNC to 6.11.0+. Require VNC authentication. Restrict VNC access to trusted IP ranges only.",
+    "source": "CURATED",
+    "first_seen": "2022-11-08"
+  },
+  {
+    "id": "MFG-VUL-017",
+    "product_name": "Internet Explorer",
+    "affected_versions": "[{\"min\": \"9.0\", \"max\": \"11.0\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 8.8,
+    "severity": "HIGH",
+    "description": "Multiple IE11 memory corruption vulnerabilities. Internet Explorer 11 reached end-of-life June 2022 but remains common on legacy HMI/SCADA workstations.",
+    "remediation": "Migrate to Microsoft Edge. For HMIs requiring IE-only interfaces, use IE Mode in Edge. Apply all available security patches.",
+    "source": "CURATED",
+    "first_seen": "2022-06-15"
+  },
+  {
+    "id": "MFG-VUL-018",
+    "product_name": "Wonderware InTouch",
+    "affected_versions": "[{\"min\": \"14.0\", \"max\": \"16.0\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 7.8,
+    "severity": "HIGH",
+    "description": "AVEVA/Wonderware InTouch HMI stack buffer overflow via malformed .CAB project files allows code execution in the context of the InTouch process.",
+    "remediation": "Apply AVEVA Security Bulletin LFSEC00000138. Update InTouch to 2020 R2 SP1 or later.",
+    "source": "CURATED",
+    "first_seen": "2022-03-22"
+  },
+  {
+    "id": "MFG-VUL-019",
+    "product_name": "Putty SSH Client",
+    "affected_versions": "[{\"min\": \"0.52\", \"max\": \"0.77\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 7.5,
+    "severity": "HIGH",
+    "description": "CVE-2023-48795: Terrapin attack against PuTTY SSH client allows prefix truncation of SSH handshake, weakening connection security.",
+    "remediation": "Update PuTTY to 0.80+.",
+    "source": "CURATED",
+    "first_seen": "2023-12-18"
+  },
+  {
+    "id": "MFG-VUL-020",
+    "product_name": "Notepad++",
+    "affected_versions": "[{\"min\": \"7.0\", \"max\": \"8.4.7\", \"include_min\": true, \"include_max\": true}]",
+    "cvss_score": 7.8,
+    "severity": "HIGH",
+    "description": "CVE-2023-40031: Notepad++ heap buffer write exploit via crafted file allows arbitrary code execution. Notepad++ commonly used by engineers on HMI workstations.",
+    "remediation": "Update Notepad++ to 8.5.2 or later.",
+    "source": "CURATED",
+    "first_seen": "2023-08-20"
+  }
+]

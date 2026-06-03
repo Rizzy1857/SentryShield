@@ -1,0 +1,154 @@
+<Page x:Class="SentryShield.UI.Views.GatewayView"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Gateway"
+      Background="{StaticResource BrushBgDeep}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ─── Section header ─── -->
+        <TextBlock Grid.Row="0"
+                   Text="SUPPLIER GATEWAY LOG"
+                   Style="{StaticResource H2}"/>
+
+        <!-- ─── Info card ─── -->
+        <Border Grid.Row="1"
+                Style="{StaticResource Card}"
+                Margin="0,0,0,12"
+                BorderBrush="#1F3A2B">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="🔒" FontSize="20" VerticalAlignment="Center"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Gateway validation is active"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource BrushAccentTeal}"/>
+                    <TextBlock Foreground="{StaticResource BrushTextSecondary}"
+                               FontSize="11">
+                        <Run Text="Files dropped in "/>
+                        <Run Text="C:\SentryShield\Downloads\" FontFamily="Consolas"
+                             Foreground="{StaticResource BrushAccentBlue}"/>
+                        <Run Text=" are automatically scanned before transfer to OT network."/>
+                    </TextBlock>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ─── Gateway files DataGrid ─── -->
+        <DataGrid Grid.Row="2"
+                  Style="{StaticResource DarkDataGrid}"
+                  ItemsSource="{Binding GatewayFiles}"
+                  ColumnHeaderStyle="{StaticResource DarkColumnHeader}"
+                  RowStyle="{StaticResource DarkDataGridRow}">
+
+            <DataGrid.Columns>
+
+                <!-- DECISION badge -->
+                <DataGridTemplateColumn Header="DECISION" Width="110" SortMemberPath="ValidationStatus">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border CornerRadius="4" Padding="6,2" Margin="8,4"
+                                    HorizontalAlignment="Left">
+                                <Border.Background>
+                                    <SolidColorBrush>
+                                        <SolidColorBrush.Color>
+                                            <MultiBinding>
+                                                <Binding Path="ValidationStatus"/>
+                                            </MultiBinding>
+                                        </SolidColorBrush.Color>
+                                    </SolidColorBrush>
+                                </Border.Background>
+                                <TextBlock Text="{Binding ValidationStatus}"
+                                           FontSize="11" FontWeight="Bold"
+                                           Foreground="White" Padding="2,1">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ValidationStatus}" Value="BLOCK">
+                                                    <Setter Property="Foreground" Value="#FF4C4C"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding ValidationStatus}" Value="ALLOWED">
+                                                    <Setter Property="Foreground" Value="#3FB950"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding ValidationStatus}" Value="WARN">
+                                                    <Setter Property="Foreground" Value="#E3B341"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding ValidationStatus}" Value="PENDING">
+                                                    <Setter Property="Foreground" Value="#8B949E"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- FILE NAME -->
+                <DataGridTextColumn Header="FILENAME" Width="*"
+                                    Binding="{Binding Filename}">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+                            <Setter Property="Padding" Value="12,8"/>
+                            <Setter Property="FontFamily" Value="Consolas"/>
+                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <!-- SUPPLIER -->
+                <DataGridTextColumn Header="SUPPLIER" Width="140"
+                                    Binding="{Binding SupplierName}">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+                            <Setter Property="Padding" Value="12,8"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <!-- FILE SIZE -->
+                <DataGridTextColumn Header="SIZE" Width="80"
+                                    Binding="{Binding FileSize, Converter={x:Static vm:FileSizeConverter.Instance}}">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}"/>
+                            <Setter Property="Padding" Value="12,8"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <!-- RECEIVED -->
+                <DataGridTextColumn Header="RECEIVED" Width="130"
+                                    Binding="{Binding ReceivedTimestamp, StringFormat='{}{0:MM/dd HH:mm}'}">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}"/>
+                            <Setter Property="Padding" Value="12,8"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <!-- BLOCK REASON -->
+                <DataGridTextColumn Header="REASON / DETAILS" Width="250"
+                                    Binding="{Binding BlockReason}">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{StaticResource BrushCritical}"/>
+                            <Setter Property="Padding" Value="12,8"/>
+                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+            </DataGrid.Columns>
+        </DataGrid>
+
+    </Grid>
+</Page>
