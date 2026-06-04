@@ -137,7 +137,8 @@ public class GatewayFolderWatcher : IDisposable
                 FileSize = new FileInfo(filePath).Length,
                 ReceivedTimestamp = DateTime.UtcNow,
                 ValidationStatus = result.Decision,
-                BlockReason = result.Decision == "BLOCK" ? result.Reason : null,
+                BlockReason = result.Decision is "BLOCK" or "WARN" ? result.Reason : null,
+                Remediation = string.IsNullOrWhiteSpace(result.Remediation) ? null : result.Remediation,
                 ValidationTimestamp = DateTime.UtcNow,
                 TransferredToOT = false
             });

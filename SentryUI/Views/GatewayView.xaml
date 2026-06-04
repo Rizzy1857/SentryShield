@@ -45,6 +45,41 @@
                   ColumnHeaderStyle="{StaticResource DarkColumnHeader}"
                   RowStyle="{StaticResource DarkDataGridRow}">
 
+            <!-- Row details panel — expanded view showing remediation steps -->
+            <DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                    <Border Background="{StaticResource BrushBgHover}"
+                            Padding="16,12" Margin="0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="REASON / DETAILS"
+                                           FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{StaticResource BrushTextMuted}"/>
+                                <TextBlock Text="{Binding BlockReason}"
+                                           TextWrapping="Wrap"
+                                           Foreground="{StaticResource BrushTextSecondary}"
+                                           FontSize="12"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="16,0,0,0" Spacing="4">
+                                <TextBlock Text="RECOMMENDED STEPS"
+                                           FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{StaticResource BrushTextMuted}"/>
+                                <TextBlock Text="{Binding Remediation}"
+                                           TextWrapping="Wrap"
+                                           Foreground="{StaticResource BrushAccentTeal}"
+                                           FontSize="12"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </DataGrid.RowDetailsTemplate>
+
             <DataGrid.Columns>
 
                 <!-- DECISION badge -->

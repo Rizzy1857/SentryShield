@@ -77,6 +77,10 @@ public class SupplierFileValidator : Interfaces.IValidator
         {
             result.Decision = "BLOCK";
             result.Reason = $"Supplier '{supplierName}' is not in the trusted supplier list";
+            result.Remediation = $"1. Do not transfer this file to the OT network. " +
+                                  $"2. Verify the supplier name matches exactly what is in trusted_suppliers.json. " +
+                                  $"3. To add this supplier, edit C:\\ProgramData\\SentryShield\\trusted_suppliers.json and add an entry for '{supplierName}'. " +
+                                  $"4. Contact the supplier through an out-of-band channel (phone/email) to confirm they intended to send this file.";
             result.IsValid = false;
             result.Details.Add($"❌ Unknown supplier: {supplierName}");
             return result;
@@ -96,6 +100,10 @@ public class SupplierFileValidator : Interfaces.IValidator
             {
                 result.Decision = "BLOCK";
                 result.Reason = "File hash does not match expected hash in trusted manifest";
+                result.Remediation = "1. The file may have been tampered with in transit or is a different version than expected. " +
+                                     "2. Do NOT use this file. Contact the supplier via a verified out-of-band channel (phone or official email). " +
+                                     "3. Request the supplier re-send the file and provide its correct SHA-256 hash. " +
+                                     "4. Update trusted_suppliers.json only after confirming the new hash with the supplier directly.";
                 result.IsValid = false;
                 result.Details.Add($"❌ Hash mismatch: got {fileHash[..16]}... expected {expectedHash[..16]}...");
                 return result;
@@ -119,6 +127,11 @@ public class SupplierFileValidator : Interfaces.IValidator
 
                 result.Decision = "BLOCK";
                 result.Reason = $"Malware detected: {ruleNames}";
+                result.Remediation = $"1. CRITICAL — do not transfer this file to the OT network under any circumstances. " +
+                                     $"2. The file matched YARA malware signatures: [{ruleNames}]. " +
+                                     $"3. Move the file to a forensic workstation (never an OT machine) for analysis. " +
+                                     $"4. Report to your security team immediately with the rule names and the supplier contact. " +
+                                     $"5. Notify the supplier ({supplierName}) that they may have sent a compromised file.";
                 result.IsValid = false;
                 result.Details.Add($"❌ YARA match: {ruleNames}");
                 return result;
@@ -134,6 +147,10 @@ public class SupplierFileValidator : Interfaces.IValidator
             result.Details.Add($"⚠ High entropy ({entropy:F2}/8.0) — file appears encrypted or heavily compressed");
             // WARN but don't block — operator should manually inspect
             result.Decision = "WARN";
+            result.Remediation = "1. Do not transfer to the OT network without manual review. " +
+                                 "2. Contact the supplier to confirm whether this file is intentionally encrypted or compressed. " +
+                                 "3. If the supplier confirms it is legitimate, document their response and proceed. " +
+                                 "4. If the source is unverified, treat as BLOCK and report to your security team.";
         }
         else
         {
@@ -145,6 +162,11 @@ public class SupplierFileValidator : Interfaces.IValidator
         {
             result.Decision = "BLOCK";
             result.Reason = "File hash matches known malware IOC database";
+            result.Remediation = "1. CRITICAL — this file is a confirmed known malware sample. Do not open or transfer it. " +
+                                 "2. Preserve the file in place (do not delete) for forensic evidence. " +
+                                 "3. Report the SHA-256 hash to your security team immediately: " + fileHash + ". " +
+                                 "4. Contact the supplier to investigate how a known malware file ended up in their delivery. " +
+                                 "5. Check if any earlier version of this file was already transferred to the OT network.";
             result.IsValid = false;
             result.Details.Add($"❌ IOC match: hash {fileHash[..16]}... is a known threat");
             return result;

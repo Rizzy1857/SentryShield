@@ -55,6 +55,7 @@ public class USBThreat
     public string FilePath { get; set; } = string.Empty;
     public string FileName { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string Remediation { get; set; } = string.Empty;
     public string RuleName { get; set; } = string.Empty;
 
     /// <summary>0–100 confidence score</summary>
@@ -94,6 +95,7 @@ public class ValidationResult
     /// <summary>"ALLOW" | "BLOCK" | "WARN"</summary>
     public string Decision { get; set; } = "PENDING";
     public string Reason { get; set; } = string.Empty;
+    public string Remediation { get; set; } = string.Empty;
     public List<string> Details { get; set; } = new();
     public DateTime ValidationTime { get; set; } = DateTime.UtcNow;
     public string FileHash { get; set; } = string.Empty;
@@ -151,6 +153,7 @@ public class GatewayFile
     public DateTime ReceivedTimestamp { get; set; }
     public string ValidationStatus { get; set; } = "PENDING";
     public string? BlockReason { get; set; }
+    public string? Remediation { get; set; }
     public DateTime? ValidationTimestamp { get; set; }
     public bool TransferredToOT { get; set; }
 }

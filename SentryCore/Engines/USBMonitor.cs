@@ -219,6 +219,10 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
                     FileName = Path.GetFileName(match.FilePath),
                     RuleName = match.RuleName,
                     Description = match.Description,
+                    Remediation = $"1. Eject the USB drive immediately and do NOT plug it into any OT/plant network machine. " +
+                                  $"2. Place the drive in a physically labelled quarantine bag. " +
+                                  $"3. Report to your security team with the rule name: [{match.RuleName}]. " +
+                                  $"4. The drive should be forensically imaged before reformatting.",
                     Severity = match.Severity,
                     Confidence = 95,
                     DetectedAt = DateTime.UtcNow
@@ -257,6 +261,10 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
                 FilePath = filePath,
                 FileName = Path.GetFileName(filePath),
                 Description = $"High entropy ({entropy:F2}/8.0) — file may be encrypted, packed, or obfuscated",
+                Remediation = "1. Do NOT transfer this file to the OT network. " +
+                              "2. Ask the file owner whether it is intentionally encrypted/compressed. " +
+                              "3. If source is unknown or unverified, treat as suspicious and quarantine. " +
+                              "4. Request an unencrypted or plain-text version from the supplier via a verified channel.",
                 Severity = "MEDIUM",
                 Confidence = 60,
                 DetectedAt = DateTime.UtcNow
@@ -284,6 +292,10 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
                     FilePath = filePath,
                     FileName = Path.GetFileName(filePath),
                     Description = $"Executable disguise: '{ext}' file has a Windows PE (MZ) header — possible renamed malware",
+                    Remediation = "1. IMMEDIATELY eject the USB drive — do NOT run or open this file. " +
+                                  "2. Renaming an executable to a non-executable extension is a known malware smuggling technique. " +
+                                  "3. Quarantine the drive and report to your security team with the filename. " +
+                                  "4. Do not reuse this drive until it has been forensically cleared.",
                     Severity = "HIGH",
                     Confidence = 85,
                     DetectedAt = DateTime.UtcNow
@@ -299,6 +311,9 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
                     FilePath = filePath,
                     FileName = Path.GetFileName(filePath),
                     Description = $"Extension mismatch: '{ext}' extension but file header indicates different type",
+                    Remediation = "1. Do not open this file. Extension mismatches can indicate disguised malicious payloads. " +
+                                  "2. Verify with the file owner what the actual file type should be. " +
+                                  "3. If source is unverified, quarantine the drive and report to your security team.",
                     Severity = "MEDIUM",
                     Confidence = 70,
                     DetectedAt = DateTime.UtcNow
@@ -317,6 +332,11 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
                 FilePath = filePath,
                 FileName = Path.GetFileName(filePath),
                 Description = $"File hash {hash[..16]}... matches known malware IOC",
+                Remediation = "1. CRITICAL — eject the USB drive immediately without opening any other files. " +
+                              "2. This file is a confirmed match against a known malware hash (MalwareBazaar IOC). " +
+                              "3. Physically quarantine the drive (do not reuse or reformat without forensic imaging). " +
+                              "4. Report the full SHA-256 hash to your security team for incident response: " + hash + ". " +
+                              "5. Check if this drive was previously plugged into any OT/plant network machine.",
                 Severity = "CRITICAL",
                 Confidence = 100,
                 DetectedAt = DateTime.UtcNow
