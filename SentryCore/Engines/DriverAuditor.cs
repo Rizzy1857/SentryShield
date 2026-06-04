@@ -22,6 +22,29 @@ public class DriverAuditor
         "Broadcom", "Marvell", "VIA Technologies", "Silicon Laboratories"
     };
 
+    // OT/ICS vendors whose drivers are intentionally old due to hardware certification
+    // cycles (IEC 61511, IEC 62443, ISA-99). Flagging these as "outdated" creates noise
+    // and undermines operator trust. They are still checked for unsigned status.
+    private static readonly HashSet<string> OtCertifiedManufacturers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Siemens",
+        "Rockwell Automation",
+        "Allen-Bradley",            // Rockwell brand
+        "Schneider Electric",
+        "Modicon",                  // Schneider brand
+        "ABB",
+        "Emerson",
+        "Emerson Electric",
+        "Yokogawa",
+        "Honeywell",
+        "Beckhoff",
+        "Mitsubishi Electric",
+        "OMRON",
+        "Phoenix Contact",
+        "Advantech",
+        "Moxa",
+    };
+
     public DriverAuditor(ILogger logger)
     {
         _logger = logger;
@@ -74,7 +97,14 @@ public class DriverAuditor
             }
 
             // Flag very old drivers (> 3 years without update — potential stability risk)
-            if (driver.DriverDate.HasValue &&
+            // Exempt OT/ICS certified vendors: their drivers are intentionally old due to
+            // hardware certification cycles and must not be updated without re-certification.
+            bool isOtCertifiedDriver = !string.IsNullOrWhiteSpace(driver.Manufacturer) &&
+                OtCertifiedManufacturers.Any(v =>
+                    driver.Manufacturer.Contains(v, StringComparison.OrdinalIgnoreCase));
+
+            if (!isOtCertifiedDriver &&
+                driver.DriverDate.HasValue &&
                 (DateTime.Now - driver.DriverDate.Value).TotalDays > 1095)
             {
                 findings.Add(new Finding
@@ -84,9 +114,10 @@ public class DriverAuditor
                     Title = $"Outdated Driver: {driver.Name}",
                     Description = $"Driver '{driver.Name}' was last updated on " +
                                   $"{driver.DriverDate:yyyy-MM-dd} (over 3 years ago). " +
-                                  "Outdated drivers may contain known vulnerabilities.",
+                                  "Outdated non-OT drivers may contain known vulnerabilities.",
                     AffectedComponent = driver.Name,
-                    Remediation = "Check manufacturer website for driver updates.",
+                    Remediation = "Check manufacturer website for driver updates. " +
+                                  "For OT hardware, consult the vendor's certified driver list before updating.",
                     DetectionTimestamp = DateTime.UtcNow
                 });
             }

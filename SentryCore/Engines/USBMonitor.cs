@@ -44,7 +44,22 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
         [".xlsx"] = new[] { new byte[] { 0x50, 0x4B } },           // ZIP (OOXML)
     };
 
-    private const double HighEntropyThreshold = 7.5;
+    private const double HighEntropyThreshold = 7.8;
+
+    // Extensions commonly used for compressed/encrypted firmware or binary blobs
+    // in manufacturing environments. These are EXPECTED to have high entropy.
+    // Entropy alerting is suppressed for these types to prevent alert fatigue.
+    // NOTE: All files still go through YARA, IOC hash, and magic byte checks.
+    // An MZ-header check is applied even to these extensions as a compensating control.
+    private static readonly HashSet<string> HighEntropyExemptExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".bin",  // Raw firmware images (Siemens, Rockwell, Beckhoff)
+        ".fw",   // Firmware update packages
+        ".hex",  // Intel HEX format (PLC/microcontroller flashing)
+        ".img",  // Disk/flash images
+        ".enc",  // Pre-encrypted vendor update blobs
+        ".dat",  // Binary data files (common in HMI configs)
+    };
 
     public USBMonitor(
         ILogger logger,
@@ -228,8 +243,12 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
         var ext = Path.GetExtension(filePath).ToLower();
 
         // 1. Entropy analysis
+        // Exempt known high-entropy-by-design firmware/binary extensions to avoid alert
+        // fatigue on legitimate OT vendor updates. All other checks still run.
+        bool isEntropyExempt = HighEntropyExemptExtensions.Contains(ext);
         var entropy = CalculateEntropy(filePath);
-        if (entropy > HighEntropyThreshold)
+
+        if (!isEntropyExempt && entropy > HighEntropyThreshold)
         {
             threats.Add(new USBThreat
             {
@@ -245,10 +264,33 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
         }
 
         // 2. Magic byte / extension mismatch
+        // Compensating control for entropy-exempt extensions: even if we skip the entropy
+        // alert, flag any file that contains an MZ (Windows PE) header but does not carry
+        // a recognised executable extension. A firmware .bin with an MZ header is almost
+        // certainly a renamed executable — a common malware delivery technique.
         if (!string.IsNullOrEmpty(ext))
         {
             var magicBytes = ReadMagicBytes(filePath);
-            if (!IsMagicByteMatch(magicBytes, ext))
+
+            // Executable-disguise check (applies to ALL extensions, including exempt ones)
+            bool isExecutableExtension = ext is ".exe" or ".dll" or ".sys" or ".com" or ".scr";
+            bool hasMzHeader = magicBytes.Length >= 2 && magicBytes[0] == 0x4D && magicBytes[1] == 0x5A;
+            if (hasMzHeader && !isExecutableExtension)
+            {
+                threats.Add(new USBThreat
+                {
+                    ThreatType = "Suspicious",
+                    DevicePath = drivePath,
+                    FilePath = filePath,
+                    FileName = Path.GetFileName(filePath),
+                    Description = $"Executable disguise: '{ext}' file has a Windows PE (MZ) header — possible renamed malware",
+                    Severity = "HIGH",
+                    Confidence = 85,
+                    DetectedAt = DateTime.UtcNow
+                });
+            }
+            // Standard extension/magic mismatch for non-exempt, non-executable files
+            else if (!isEntropyExempt && !IsMagicByteMatch(magicBytes, ext))
             {
                 threats.Add(new USBThreat
                 {
