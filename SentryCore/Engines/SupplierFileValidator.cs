@@ -1,5 +1,10 @@
 using System.Security.Cryptography;
+#if NET48
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+#else
 using System.Text.Json;
+#endif
 using Microsoft.Extensions.Logging;
 using SentryShield.Core.Models;
 
@@ -119,7 +124,11 @@ public class SupplierFileValidator : Interfaces.IValidator
         var yaraJson = await _processRunner.RunYaraScanFileAsync(filePath);
         if (!string.IsNullOrWhiteSpace(yaraJson))
         {
+#if NET48
+            var matches = JsonConvert.DeserializeObject<List<Dictionary<string, string>>>(yaraJson);
+#else
             var matches = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(yaraJson);
+#endif
             if (matches != null && matches.Count > 0)
             {
                 var ruleNames = string.Join(", ", matches.Select(m =>
@@ -215,23 +224,57 @@ public class SupplierFileValidator : Interfaces.IValidator
         try
         {
             var sbomJson = await File.ReadAllTextAsync(sbomPath);
-            var sbom = JsonDocument.Parse(sbomJson);
 
-            // Support CycloneDX and basic SPDX component arrays
-            JsonElement components;
-            if (!sbom.RootElement.TryGetProperty("components", out components) &&
-                !sbom.RootElement.TryGetProperty("packages", out components))
+            bool hasVulnerableComponent = false;
+
+#if NET48
+            // Newtonsoft.Json path for .NET 4.8
+            var root = JObject.Parse(sbomJson);
+            var components = root["components"] as JArray ?? root["packages"] as JArray;
+            if (components == null)
             {
                 result.IsValid = true;
                 result.Details.Add("⚠ SBOM format not recognized — skipping component check");
                 return result;
             }
 
-            bool hasVulnerableComponent = false;
-
-            foreach (var component in components.EnumerateArray())
+            foreach (var component in components)
             {
-                var name = component.TryGetProperty("name", out var n) ? n.GetString() : null;
+                var name    = component["name"]?.Value<string>();
+                var version = component["version"]?.Value<string>();
+
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(version))
+                    continue;
+
+                var vulns = _vulnMatcher.FindVulnerabilities(name, version, "");
+                if (vulns.Count > 0)
+                {
+                    hasVulnerableComponent = true;
+                    var cveList = string.Join(", ", vulns.Select(v2 => v2.CVEId));
+                    result.Details.Add($"❌ {name} v{version}: {cveList}");
+                }
+                else
+                {
+                    result.Details.Add($"✓ {name} v{version}: No known CVEs");
+                }
+            }
+#else
+            // System.Text.Json path for .NET 8
+            var sbom = JsonDocument.Parse(sbomJson);
+
+            // Support CycloneDX and basic SPDX component arrays
+            JsonElement componentsEl;
+            if (!sbom.RootElement.TryGetProperty("components", out componentsEl) &&
+                !sbom.RootElement.TryGetProperty("packages", out componentsEl))
+            {
+                result.IsValid = true;
+                result.Details.Add("⚠ SBOM format not recognized — skipping component check");
+                return result;
+            }
+
+            foreach (var component in componentsEl.EnumerateArray())
+            {
+                var name    = component.TryGetProperty("name",    out var n) ? n.GetString() : null;
                 var version = component.TryGetProperty("version", out var v) ? v.GetString() : null;
 
                 if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(version))
@@ -249,6 +292,7 @@ public class SupplierFileValidator : Interfaces.IValidator
                     result.Details.Add($"✓ {name} v{version}: No known CVEs");
                 }
             }
+#endif
 
             result.IsValid = !hasVulnerableComponent;
             if (hasVulnerableComponent)
@@ -296,7 +340,7 @@ public class SupplierFileValidator : Interfaces.IValidator
             {
                 if (freq[i] == 0) continue;
                 double p = (double)freq[i] / read;
-                h -= p * Math.Log2(p);
+                h -= p * Math.Log(p, 2);
             }
             return h;
         }

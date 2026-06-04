@@ -1,7 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- net8.0-windows: modern deployments (Win10/11, Server 2019+) -->
+    <!-- net48: legacy HMI/SCADA machines (Win7, WES7, WE8.1)       -->
+    <TargetFrameworks>net8.0-windows;net48</TargetFrameworks>
+    <!-- Allow modern C# syntax (records, switch expressions, file-scoped namespaces)
+         against the .NET 4.8 BCL. Language version is independent of TFM. -->
+    <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>SentryShield.Core</RootNamespace>
@@ -11,9 +16,19 @@
   <ItemGroup>
     <ProjectReference Include="..\SentryDatabase\SentryDatabase.csproj" />
 
-    <PackageReference Include="System.Management" Version="8.0.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.118" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+
+  <!-- System.Management: only available as a NuGet package on net8; on net48 it is inbox -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+    <PackageReference Include="System.Management" Version="8.0.0" />
+  </ItemGroup>
+
+  <!-- net48: System.Text.Json is not in the .NET 4.8 BCL.
+       Newtonsoft.Json 13.x has a net45 target and runs cleanly on .NET 4.8. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
 </Project>

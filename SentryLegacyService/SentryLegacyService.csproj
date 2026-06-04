@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>SentryShield.LegacyService</RootNamespace>
+    <AssemblyName>SentryLegacyService</AssemblyName>
+    <!-- Windows Service support is inbox on .NET 4.8 via System.ServiceProcess -->
+    <UseWindowsForms>false</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SentryCore\SentryCore.csproj" />
+    <ProjectReference Include="..\SentryDatabase\SentryDatabase.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ServiceBase lives in System.ServiceProcess on .NET 4.8 (inbox) -->
+    <Reference Include="System.ServiceProcess" />
+    <!-- System.Configuration for reading appsettings.json via ConfigurationManager -->
+    <Reference Include="System.Configuration" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Logging: Microsoft.Extensions.Logging.Abstractions targets netstandard2.0 — runs on net48 -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <!-- Microsoft.Extensions.Configuration for JSON config reading -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+    <!-- Newtonsoft.Json for all JSON needs (net48 has no System.Text.Json) -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <!-- SQLite access -->
+    <PackageReference Include="System.Data.SQLite" Version="1.0.118" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

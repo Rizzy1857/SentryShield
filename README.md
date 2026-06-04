@@ -3,11 +3,11 @@
 > **Offline-first security monitoring for ICS/OT and manufacturing environments.**
 > No cloud. No agents. No internet required after initial database seeding.
 
-[![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)]()
-[![.NET](https://img.shields.io/badge/.NET-8.0-purple)]()
+[![Platform](https://img.shields.io/badge/Platform-Windows%207%2F10%2F11-blue)]()
+[![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%204.8-purple)]()
 [![Python](https://img.shields.io/badge/Python-3.11-yellow)]()
 [![Tests](https://img.shields.io/badge/Tests-40%20NUnit%20%7C%2016%20pytest-green)]()
-[![Version](https://img.shields.io/badge/Version-v1.1-orange)]()
+[![Version](https://img.shields.io/badge/Version-v2.0--dev-orange)]()
 
 ---
 
@@ -33,64 +33,68 @@ SentryShield/
 ├── SentryShield.sln
 ├── CHANGELOG.md
 │
-├── SentryService/              # .NET 8 Windows Service (orchestrator)
+├── SentryService/              # .NET 8 Windows Service (modern deployments)
 │   ├── SentryWorker.cs         # Background polling loop
 │   ├── IPC/ProcessRunner.cs    # Python subprocess bridge
 │   └── Watchers/GatewayFolderWatcher.cs
 │
-├── SentryCore/                 # Core detection library (C#)
+├── SentryLegacyService/        # .NET 4.8 Windows Service (Win7 / WES7 HMIs)
+│   ├── LegacyServiceHost.cs    # ServiceBase + System.Threading.Timer
+│   ├── LegacyYaraGuard.cs      # Optional YARA — graceful fallback if Python absent
+│   ├── LegacyConfig.cs         # Typed config model
+│   ├── Program.cs              # Headless ServiceBase.Run() entry point
+│   └── appsettings.json
+│
+├── SentryCore/                 # Core detection library — dual-targets net8 + net48
 │   ├── Engines/
-│   │   ├── VulnerabilityMatcher.cs     # ← intern-owned (version logic)
+│   │   ├── VulnerabilityMatcher.cs
 │   │   ├── USBMonitor.cs
 │   │   ├── SupplierFileValidator.cs
 │   │   ├── DriverAuditor.cs
 │   │   ├── HardeningAudit.cs
 │   │   └── SoftwareEnumerator.cs
-│   ├── Interfaces/             # IDetectionPlugin, IUSBMonitor, IValidator…
-│   ├── Models/                 # Finding, VulnerabilityMatch, USBThreat…
+│   ├── Interfaces/
+│   ├── Models/
 │   └── Logging/EventLogWriter.cs
 │
-├── SentryDatabase/             # SQLite DAL (C#)
-│   ├── Schema/init.sql         # 7 tables, 9 indexes, WAL mode
+├── SentryDatabase/             # SQLite DAL — dual-targets net8 + net48
+│   ├── Schema/init.sql
 │   ├── VulnerabilityDb.cs
 │   ├── IOCDb.cs
 │   └── ScanHistoryDb.cs
 │
 ├── SentryUI/                   # WPF Admin Dashboard (.NET 8)
-│   ├── MainWindow.xaml         # Dark industrial layout
+│   ├── MainWindow.xaml
 │   ├── ViewModels/DashboardViewModel.cs
-│   └── Views/                  # FindingsView, GatewayView, SettingsView
+│   └── Views/
 │
 ├── SentryPython/               # Python utilities
-│   ├── init_db.py              # ← one-time DB bootstrapper (run first)
-│   ├── cert_parser.py          # NVD JSON 2.0 API parser
-│   ├── cert_in_parser.py       # CERT-In advisory scraper + NVD cross-ref
-│   ├── db_sync.py              # Nightly NVD + CERT-In delta sync
-│   ├── yara_scanner.py         # YARA scan → JSON stdout
-│   └── ioc_populate.py         # IOC hash database loader
+│   ├── init_db.py
+│   ├── cert_parser.py
+│   ├── cert_in_parser.py
+│   ├── db_sync.py
+│   ├── yara_scanner.py
+│   └── ioc_populate.py
 │
 ├── rules/
-│   └── malware.yar             # 20 YARA rules (Mimikatz, WannaCry, TRITON…)
+│   └── malware.yar
 │
 ├── Installer/
-│   └── SentryShield.wxs        # WiX 4 MSI installer definition
+│   └── SentryShield.wxs
 │
 ├── Plugins/
-│   └── IDSPlugin/IDSPlugin.stub.cs   # v2.0 placeholder
+│   └── IDSPlugin/IDSPlugin.stub.cs
 │
 ├── Tests/
 │   ├── SentryCore.Tests/
-│   │   ├── VulnerabilityMatcherTests.cs   # 15 tests
-│   │   ├── USBMonitorTests.cs             # 11 tests
-│   │   └── SupplierFileValidatorTests.cs  # 14 tests
 │   └── SentryPython/tests/
-│       └── test_sentryshield.py           # 16 pytest tests
 │
 └── Docs/
-    ├── SETUP.md          # Dev + deployment guide
-    ├── ARCHITECTURE.md   # System design + data flows
-    ├── idea.md           # Product vision + roadmap
-    └── ai_strategy.md    # AI usage policy
+    ├── SETUP.md
+    ├── ARCHITECTURE.md
+    ├── WIN7_COMPAT.md    # Legacy HMI deployment guide
+    ├── idea.md
+    └── ai_strategy.md
 ```
 
 ---
@@ -99,12 +103,18 @@ SentryShield/
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
-| Windows | 10 / 11 / Server 2019+ | Admin rights required |
+| Windows | 10 / 11 / Server 2019+ | Admin rights required — for modern deployments |
 | .NET SDK | 8.0 | https://dotnet.microsoft.com/download |
 | Python | 3.11 | https://www.python.org/downloads |
 | WiX (optional) | 4.x | Only needed to build the `.msi` installer |
 
-> **Windows 7 / Embedded**: .NET 8 does not support Windows 7. For legacy HMIs, recompile `SentryCore` targeting .NET Framework 4.8 (v2.0 work item).
+**Legacy HMI (Windows 7 / Embedded):** Use `SentryLegacyService` instead of `SentryService`. See [`Docs/WIN7_COMPAT.md`](Docs/WIN7_COMPAT.md) for the full deployment guide.
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| Windows 7 SP1 / WES7 / WE8.1 | — | Admin rights required |
+| .NET Framework 4.8 | 4.8.x | [Download](https://dotnet.microsoft.com/download/dotnet-framework/net48) — must be installed manually on Win7 |
+| Python (optional) | 3.8–3.11 | Only for YARA scanning — service works without it |
 
 ---
 
@@ -175,22 +185,26 @@ pytest Tests/SentryPython/tests/ -v
 NVD API ──────┐
 CERT-In ───────┤──► init_db.py / db_sync.py ──► vulnerability.db
                │                                       │
-               │    SentryService (.NET 8)             │
-               │    ├── SentryWorker (polling)  ◄──────┘
-               │    ├── GatewayFolderWatcher            │
-               │    └── ProcessRunner (IPC)             │
-               │              │  subprocess             │
-               │    SentryPython (Python)               │
-               │    └── yara_scanner.py                 │
-               │                                        │
-               │    SentryCore                          │
-               │    ├── VulnerabilityMatcher ───────────┘
+               │    ┌─────────────────────────────────┴──────────┐
+               │    │  Modern (Windows 10/11)                     │
+               │    │  SentryService (.NET 8)                     │
+               │    │  └── SentryWorker / GatewayFolderWatcher   │
+               │    └─────────────────────────────────────────────┘
+               │    ┌─────────────────────────────────────────────┐
+               │    │  Legacy (Windows 7 / WES7)                  │
+               │    │  SentryLegacyService (.NET 4.8)             │
+               │    │  └── LegacyServiceHost (ServiceBase+Timer)  │
+               │    │  └── LegacyYaraGuard (optional YARA)        │
+               │    └─────────────────────────────────────────────┘
+               │              │  both use identical
+               │    SentryCore (dual-target: net8 + net48)
+               │    ├── VulnerabilityMatcher
                │    ├── USBMonitor
                │    ├── SupplierFileValidator
                │    ├── DriverAuditor
                │    └── HardeningAudit
                │              │
-               └──────► SentryUI (WPF Dashboard)
+               └──────► SentryUI (WPF Dashboard — modern only)
 ```
 
 Full architecture: `Docs/ARCHITECTURE.md`
@@ -223,6 +237,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 | Version | Date | Highlights |
 |---------|------|-----------|
+| v2.0-dev | 2026-06-04 | .NET 4.8 dual-target, `SentryLegacyService` for Win7/WES7 HMIs, remediation steps on all findings |
 | v1.1 | 2026-06-04 | Live CERT-In pipeline, `init_db.py`, WiX installer, 25 new tests |
 | v1.0 | 2026-06-03 | Initial full build — all 4 pillars, WPF dashboard, 31 tests |
 
@@ -231,3 +246,29 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 ## License
 
 MIT — see `LICENSE` if one applies.
+
+---
+
+## ⚠️ Pending: Windows Build Verification Required
+
+> These steps **cannot be done on macOS** — the .NET SDK is not installed here (only the VS Code runtime extension is present). They must be run on a Windows machine with the .NET 8 SDK installed.
+
+```cmd
+:: 1. Register the new legacy service project with the solution
+dotnet sln SentryShield.sln add SentryLegacyService/SentryLegacyService.csproj
+
+:: 2. Verify SentryCore compiles for both targets
+dotnet build SentryCore/SentryCore.csproj --framework net48
+dotnet build SentryCore/SentryCore.csproj --framework net8.0-windows
+
+:: 3. Verify SentryDatabase compiles for net48
+dotnet build SentryDatabase/SentryDatabase.csproj --framework net48
+
+:: 4. Verify the new legacy service project builds
+dotnet build SentryLegacyService/SentryLegacyService.csproj
+
+:: 5. Confirm existing net8 tests are unaffected
+dotnet test Tests/SentryCore.Tests/ --framework net8.0-windows
+```
+
+Once all 5 commands pass, remove this section and tag the commit as `v2.0`.

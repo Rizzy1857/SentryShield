@@ -206,7 +206,11 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
             var jsonResult = await _processRunner.RunYaraScanAsync(drivePath);
             if (string.IsNullOrWhiteSpace(jsonResult)) return threats;
 
+#if NET48
+            var matches = Newtonsoft.Json.JsonConvert.DeserializeObject<List<YaraMatch>>(jsonResult);
+#else
             var matches = System.Text.Json.JsonSerializer.Deserialize<List<YaraMatch>>(jsonResult);
+#endif
             if (matches == null) return threats;
 
             foreach (var match in matches)
@@ -374,7 +378,7 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
             {
                 if (freq[i] == 0) continue;
                 double p = (double)freq[i] / read;
-                entropy -= p * Math.Log2(p);
+                entropy -= p * Math.Log(p, 2);
             }
 
             return entropy;
