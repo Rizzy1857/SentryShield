@@ -1,29 +1,32 @@
 """
 SentryShield v1.0 — Daily DB Sync Scheduler (db_sync.py)
-Week 2 deliverable
 
-Runs the NVD feed sync on a schedule.
+Runs nightly syncs from two live sources:
+  1. NIST NVD API   — manufacturing-relevant CVEs (last 24h delta)
+  2. CERT-In        — India CERT advisories (last 7 days rolling window)
+
 Can be deployed as:
-  - A Windows Task Scheduler task (recommended for air-gapped environments)
-  - A standalone Python process
+  - A Windows Task Scheduler task (recommended — run with --once flag)
+  - A standalone Python process (schedule library)
 
 Usage:
     python db_sync.py --db C:\\ProgramData\\SentryShield\\vulnerability.db
-    python db_sync.py --db vulnerability.db --once    (run once and exit)
-    python db_sync.py --db vulnerability.db --json    (JSON status output)
+    python db_sync.py --db vulnerability.db --once        (run once and exit)
+    python db_sync.py --db vulnerability.db --json        (JSON status output)
+    python db_sync.py --db vulnerability.db --time 02:00  (run at 2am)
+
+Environment:
+    NVD_API_KEY — Optional NVD API key for 10x higher rate limits.
 """
 
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
-
-import schedule
-
-from cert_parser import NVDFeedParser, MANUFACTURING_KEYWORDS
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,71 +36,90 @@ logging.basicConfig(
 )
 log = logging.getLogger("db_sync")
 
+# Add script directory to path so imports work regardless of cwd
+sys.path.insert(0, str(Path(__file__).parent))
 
-def run_sync(db_path: str, curated_json: str, json_output: bool = False) -> dict:
+from cert_parser import NVDFeedParser, MANUFACTURING_KEYWORDS
+
+
+def run_sync(db_path: str, json_output: bool = False) -> dict:
     """
-    Execute a full sync cycle:
-    1. Load curated manufacturing vulnerability list (offline baseline)
-    2. Pull latest NVD CVEs for manufacturing keywords
-    3. Compress DB for offline distribution
+    Execute a full nightly sync:
+      1. NVD delta (last 24h) for manufacturing keywords
+      2. CERT-In delta (last 7 days) for new advisories
+      3. Compress DB
+
     Returns status dict.
     """
     start = datetime.utcnow()
     log.info("=== SentryShield DB Sync starting at %s ===", start.isoformat())
 
+    if not Path(db_path).exists():
+        log.error("Database not found: %s — run init_db.py first", db_path)
+        result = {"status": "error", "error": "DB not found — run init_db.py first"}
+        if json_output:
+            print(json.dumps(result))
+        return result
+
     result = {
         "timestamp": start.isoformat(),
         "status": "error",
-        "curated_inserted": 0,
         "nvd_inserted": 0,
+        "cert_in_inserted": 0,
         "total_vulnerabilities": 0,
         "db_compressed": False,
         "checksum": None,
-        "error": None
+        "error": None,
     }
 
+    feed = NVDFeedParser(db_path)
+
+    # ── 1. NVD delta (last 1 day) ─────────────────────────────────────────
+    try:
+        log.info("Syncing NVD (last 24h delta)...")
+        result["nvd_inserted"] = feed.sync_from_nvd(
+            keywords=MANUFACTURING_KEYWORDS,
+            days_back=1
+        )
+        log.info("NVD delta: %d new records", result["nvd_inserted"])
+    except Exception as e:
+        log.warning("NVD sync failed (may be offline): %s", e)
+        result["nvd_inserted"] = 0
+
+    feed.close()
+
+    # ── 2. CERT-In delta (last 7 days rolling) ────────────────────────────
+    try:
+        from cert_in_parser import CERTInParser
+        log.info("Syncing CERT-In (last 7 days)...")
+        cert_in = CERTInParser(db_path)
+        summary = cert_in.sync(days_back=7)
+        cert_in.close()
+        result["cert_in_inserted"] = summary.get("inserted", 0)
+        log.info("CERT-In: %d advisories → %d new CVEs",
+                 summary.get("advisories_processed", 0),
+                 result["cert_in_inserted"])
+    except Exception as e:
+        log.warning("CERT-In sync failed: %s", e)
+        result["cert_in_inserted"] = 0
+
+    # ── 3. Stats + compress ───────────────────────────────────────────────
     try:
         feed = NVDFeedParser(db_path)
-
-        # Step 1: Curated list (always succeeds — offline)
-        curated_path = Path(curated_json)
-        if curated_path.exists():
-            result["curated_inserted"] = feed.sync_from_curated(str(curated_path))
-        else:
-            log.warning("Curated JSON not found at %s — skipping", curated_json)
-
-        # Step 2: NVD live sync (may fail on air-gapped networks — non-fatal)
-        try:
-            result["nvd_inserted"] = feed.sync_from_nvd(
-                keywords=MANUFACTURING_KEYWORDS,
-                days_back=1  # Daily sync: last 24 hours only
-            )
-        except Exception as e:
-            log.warning("NVD sync failed (may be offline): %s", e)
-            result["nvd_inserted"] = 0
-
-        # Step 3: Compress DB
-        try:
-            checksum = feed.compress_db()
-            result["db_compressed"] = True
-            result["checksum"] = checksum
-        except Exception as e:
-            log.warning("DB compression failed: %s", e)
-
-        # Stats
         stats = feed.get_stats()
         result["total_vulnerabilities"] = stats["total_vulnerabilities"]
-        result["status"] = "success"
 
-        elapsed = (datetime.utcnow() - start).total_seconds()
-        log.info("=== Sync complete: %d new records in %.1fs ===",
-                 result["curated_inserted"] + result["nvd_inserted"], elapsed)
-
+        checksum = feed.compress_db()
+        result["db_compressed"] = True
+        result["checksum"] = checksum
         feed.close()
-
     except Exception as e:
-        log.error("Sync failed: %s", e)
-        result["error"] = str(e)
+        log.warning("Post-sync compress/stats failed: %s", e)
+
+    result["status"] = "success"
+    elapsed = (datetime.utcnow() - start).total_seconds()
+    total_new = result["nvd_inserted"] + result["cert_in_inserted"]
+    log.info("=== Sync complete: %d new records in %.1fs ===", total_new, elapsed)
 
     if json_output:
         print(json.dumps(result))
@@ -107,17 +129,12 @@ def run_sync(db_path: str, curated_json: str, json_output: bool = False) -> dict
 
 def main():
     parser = argparse.ArgumentParser(
-        description="SentryShield vulnerability DB daily sync scheduler"
+        description="SentryShield vulnerability DB daily sync (NVD + CERT-In)"
     )
     parser.add_argument("--db", required=True, help="Path to SQLite database")
     parser.add_argument(
-        "--curated-json",
-        default=str(Path(__file__).parent / "curated_vulns.json"),
-        help="Path to curated_vulns.json"
-    )
-    parser.add_argument(
         "--once", action="store_true",
-        help="Run once and exit (for Task Scheduler / cron use)"
+        help="Run once and exit (for Windows Task Scheduler use)"
     )
     parser.add_argument(
         "--time", default="06:00",
@@ -128,22 +145,27 @@ def main():
     args = parser.parse_args()
 
     if args.once:
-        # Run immediately once and exit (used by Windows Task Scheduler)
-        run_sync(args.db, args.curated_json, json_output=args.json)
+        run_sync(args.db, json_output=args.json)
         return
 
     # Schedule mode: run daily at configured time
-    log.info("DB sync scheduler starting — will run daily at %s", args.time)
+    try:
+        import schedule
+    except ImportError:
+        log.error("'schedule' package not found. Run: pip install schedule")
+        log.info("Alternatively, use --once flag with Windows Task Scheduler.")
+        sys.exit(1)
+
+    log.info("DB sync scheduler running — daily at %s", args.time)
 
     def scheduled_sync():
-        run_sync(args.db, args.curated_json, json_output=False)
+        run_sync(args.db, json_output=False)
 
     schedule.every().day.at(args.time).do(scheduled_sync)
 
-    # Run immediately on first start
+    # Run once immediately on startup
     scheduled_sync()
 
-    # Main loop
     while True:
         schedule.run_pending()
         time.sleep(60)

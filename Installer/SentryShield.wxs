@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SentryShield v1.0 — WiX 4 Installer Definition
+  File: Installer/SentryShield.wxs
+
+  Build:
+    1. Publish binaries first:
+         dotnet publish ..\SentryService -c Release -r win-x64 --self-contained false -o publish\SentryService
+         dotnet publish ..\SentryUI      -c Release -r win-x64 --self-contained false -o publish\SentryUI
+
+    2. Build MSI:
+         wix build SentryShield.wxs -d PublishDir=publish -o SentryShield-v1.0-Setup.msi
+
+  Silent GPO install:
+    msiexec /i SentryShield-v1.0-Setup.msi /qn /l*v install.log
+
+  UpgradeCode is FIXED — never change it between versions.
+  All Component GUIDs are stable — generated once, never change.
+-->
+
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Package
+    Name="SentryShield"
+    Version="1.0.0"
+    Manufacturer="SentryShield Security"
+    UpgradeCode="8F3A1C2D-7E4B-4F8A-9B3C-2D5E6F7A8B9C"
+    Language="1033"
+    Codepage="1252"
+    InstallerVersion="500"
+    Compressed="yes"
+    Description="SentryShield v1.0 — Offline Security Monitor for Manufacturing">
+
+    <!-- ── Upgrade handling ─────────────────────────────────────────────── -->
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of SentryShield is already installed."
+      Schedule="afterInstallInitialize" />
+
+    <!-- ── Media / compression ─────────────────────────────────────────── -->
+    <Media Id="1" Cabinet="SentryShield.cab" EmbedCab="yes" CompressionLevel="high" />
+
+    <!-- ── Properties ──────────────────────────────────────────────────── -->
+    <Property Id="ARPHELPLINK"     Value="https://github.com/Rizzy1857/SentryShield" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/Rizzy1857/SentryShield" />
+
+    <!-- ── Directory structure ─────────────────────────────────────────── -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="SENTRYSHIELDDIR" Name="SentryShield">
+        <Directory Id="BINDIR"     Name="bin" />
+        <Directory Id="SCRIPTSDIR" Name="scripts" />
+        <Directory Id="RULESDIR"   Name="rules" />
+        <Directory Id="LOGSDIR"    Name="logs" />
+        <Directory Id="GATEWAYDIR" Name="Downloads" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- C:\ProgramData\SentryShield — DB + config survive upgrades -->
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="SENTRYSHIELDDATADIR" Name="SentryShield">
+        <Directory Id="BACKUPSDIR" Name="backups" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Desktop + Start Menu shortcuts -->
+    <StandardDirectory Id="DesktopFolder" />
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="STARTMENUFOLDER" Name="SentryShield" />
+    </StandardDirectory>
+
+    <!-- ── Components ──────────────────────────────────────────────────── -->
+    <ComponentGroup Id="BinComponents" Directory="BINDIR">
+
+      <!-- SentryService.exe + Windows Service registration -->
+      <Component Id="SentryServiceExe" Guid="3A7F2B1C-4D8E-4A9F-B2C3-1D4E5F6A7B8C">
+        <File Id="SentryServiceExeFile"
+              Source="$(var.PublishDir)\SentryService\SentryService.exe"
+              KeyPath="yes" />
+
+        <ServiceInstall
+          Id="SentryShieldService"
+          Name="SentryShield"
+          DisplayName="SentryShield Security Agent"
+          Description="SentryShield offline vulnerability scanner and USB threat monitor for manufacturing environments."
+          Type="ownProcess"
+          Start="auto"
+          ErrorControl="normal"
+          Account="LocalSystem" />
+
+        <ServiceControl
+          Id="StartSentryShieldService"
+          Name="SentryShield"
+          Start="install"
+          Stop="both"
+          Remove="uninstall"
+          Wait="yes" />
+      </Component>
+
+      <!-- SentryUI.exe (Admin Dashboard) -->
+      <Component Id="SentryUIExe" Guid="1B2C3D4E-5F6A-47B8-C9D0-E1F2A3B4C5D6">
+        <File Id="SentryUIExeFile"
+              Source="$(var.PublishDir)\SentryUI\SentryUI.exe"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- appsettings.json — NeverOverwrite preserves admin edits on upgrade -->
+      <Component Id="AppSettings" Guid="9C8B7A6F-5E4D-43C2-B1A0-F9E8D7C6B5A4">
+        <File Id="AppSettingsFile"
+              Source="..\SentryService\appsettings.json"
+              KeyPath="yes"
+              NeverOverwrite="yes" />
+      </Component>
+
+    </ComponentGroup>
+
+    <!-- Python scripts -->
+    <ComponentGroup Id="ScriptComponents" Directory="SCRIPTSDIR">
+      <Component Id="CertParser"    Guid="2D3E4F5A-6B7C-48D9-E0F1-A2B3C4D5E6F7">
+        <File Source="..\SentryPython\cert_parser.py"    KeyPath="yes" />
+      </Component>
+      <Component Id="CertInParser"  Guid="4E5F6A7B-8C9D-40E1-F2A3-B4C5D6E7F8A9">
+        <File Source="..\SentryPython\cert_in_parser.py" KeyPath="yes" />
+      </Component>
+      <Component Id="InitDb"        Guid="6F7A8B9C-0D1E-42F3-A4B5-C6D7E8F9A0B1">
+        <File Source="..\SentryPython\init_db.py"        KeyPath="yes" />
+      </Component>
+      <Component Id="DbSync"        Guid="8A9B0C1D-2E3F-44A5-B6C7-D8E9F0A1B2C3">
+        <File Source="..\SentryPython\db_sync.py"        KeyPath="yes" />
+      </Component>
+      <Component Id="YaraScanner"   Guid="0B1C2D3E-4F5A-46B7-C8D9-E0F1A2B3C4D5">
+        <File Source="..\SentryPython\yara_scanner.py"   KeyPath="yes" />
+      </Component>
+      <Component Id="IocPopulate"   Guid="2C3D4E5F-6A7B-48C9-D0E1-F2A3B4C5D6E7">
+        <File Source="..\SentryPython\ioc_populate.py"   KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- YARA rules -->
+    <ComponentGroup Id="RulesComponents" Directory="RULESDIR">
+      <Component Id="MalwareYar" Guid="4D5E6F7A-8B9C-40D1-E2F3-A4B5C6D7E8F9">
+        <File Source="..\rules\malware.yar" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- ProgramData directories — DB persists across upgrades -->
+    <ComponentGroup Id="DataDirComponents" Directory="SENTRYSHIELDDATADIR">
+      <Component Id="DataDirComp" Guid="6E7F8A9B-0C1D-42E3-F4A5-B6C7D8E9F0A1">
+        <CreateFolder />
+        <util:PermissionEx User="SYSTEM"         GenericAll="yes" />
+        <util:PermissionEx User="Administrators" GenericAll="yes" />
+      </Component>
+      <Component Id="BackupsDirComp" Guid="8F9A0B1C-2D3E-44F5-A6B7-C8D9E0F1A2B3"
+                 Directory="BACKUPSDIR">
+        <CreateFolder />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Gateway drop folder -->
+    <ComponentGroup Id="GatewayComponents" Directory="GATEWAYDIR">
+      <Component Id="GatewayDirComp" Guid="A1B2C3D4-5E6F-47A8-B9C0-D1E2F3A4B5C6">
+        <CreateFolder />
+        <util:PermissionEx User="Users" GenericWrite="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Desktop + Start Menu shortcuts -->
+    <ComponentGroup Id="ShortcutComponents" Directory="SENTRYSHIELDDIR">
+      <Component Id="DesktopShortcutComp" Guid="C3D4E5F6-7A8B-49C0-D1E2-F3A4B5C6D7E8"
+                 Directory="DesktopFolder">
+        <Shortcut Id="DesktopShortcut"
+                  Name="SentryShield Dashboard"
+                  Description="Open SentryShield Admin Dashboard"
+                  Target="[BINDIR]SentryUI.exe"
+                  WorkingDirectory="BINDIR" />
+        <RemoveFolder Id="RemoveDesktop" Directory="DesktopFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\SentryShield"
+                       Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+
+      <Component Id="StartMenuShortcutComp" Guid="E5F6A7B8-9C0D-41E2-F3A4-B5C6D7E8F9A0"
+                 Directory="STARTMENUFOLDER">
+        <Shortcut Id="StartMenuDashboard"
+                  Name="SentryShield Dashboard"
+                  Description="Open SentryShield Admin Dashboard"
+                  Target="[BINDIR]SentryUI.exe"
+                  WorkingDirectory="BINDIR" />
+        <Shortcut Id="StartMenuUninstall"
+                  Name="Uninstall SentryShield"
+                  Target="[System64Folder]msiexec.exe"
+                  Arguments="/x [ProductCode]" />
+        <RemoveFolder Id="RemoveStartMenu" Directory="STARTMENUFOLDER" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\SentryShield"
+                       Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- ── Feature tree ─────────────────────────────────────────────────── -->
+    <Feature Id="FeatureMain" Title="SentryShield" Level="1"
+             Description="SentryShield security monitoring service and dashboard."
+             ConfigurableDirectory="SENTRYSHIELDDIR">
+      <ComponentGroupRef Id="BinComponents" />
+      <ComponentGroupRef Id="ScriptComponents" />
+      <ComponentGroupRef Id="RulesComponents" />
+      <ComponentGroupRef Id="DataDirComponents" />
+      <ComponentGroupRef Id="GatewayComponents" />
+      <ComponentGroupRef Id="ShortcutComponents" />
+    </Feature>
+
+    <!-- ── Custom actions ───────────────────────────────────────────────── -->
+    <!--
+      Post-install: Run SentrySetup.ps1 to bootstrap the DB, create venv,
+      fetch IOC hashes, and schedule the nightly sync.
+      SentrySetup.ps1 is copied by the MSI as part of the scripts component.
+    -->
+    <CustomAction Id="RunSentrySetup"
+                  Directory="SCRIPTSDIR"
+                  ExeCommand='powershell.exe -NonInteractive -ExecutionPolicy Bypass -File "[SCRIPTSDIR]SentrySetup.ps1" -Unattended'
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="no" />
+
+    <CustomAction Id="RemoveScheduledTask"
+                  Directory="BINDIR"
+                  ExeCommand='cmd.exe /c schtasks /delete /tn "SentryShield DB Sync" /f'
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="no" />
+
+    <InstallExecuteSequence>
+      <Custom Action="RunSentrySetup"    After="StartServices">NOT Installed</Custom>
+      <Custom Action="RemoveScheduledTask" After="StopServices">REMOVE~="ALL"</Custom>
+    </InstallExecuteSequence>
+
+    <!-- ── UI — minimal, no bitmaps or license RTF required ────────────── -->
+    <ui:WixUI Id="WixUI_Minimal" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui" />
+
+  </Package>
+</Wix>

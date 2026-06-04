@@ -39,98 +39,24 @@ MALWAREBAZAAR_API = "https://mb-api.abuse.ch/api/v1/"
 
 
 # ---------------------------------------------------------------------------
-# Curated manufacturing IOC list (embedded — always available offline)
-# These are well-known, high-confidence hashes relevant to ICS/OT environments.
-# Replace placeholder hashes with real values from VirusTotal/MalwareBazaar.
+# Curated manufacturing IOC list
+# ---------------------------------------------------------------------------
+# This list is intentionally empty.
+#
+# Real IOC hashes are fetched at deployment time from MalwareBazaar (free):
+#   python ioc_populate.py --db vulnerability.db --malwarebazaar --tag ransomware
+#   python ioc_populate.py --db vulnerability.db --malwarebazaar --tag rat
+#   python ioc_populate.py --db vulnerability.db --malwarebazaar --tag ics
+#
+# If you need an offline curated list, export from:
+#   MalwareBazaar: https://bazaar.abuse.ch/export/ (SHA-256 CSV, free, no key)
+#   VirusTotal:    https://www.virustotal.com/gui/home/upload
+#   MISP:          https://www.misp-project.org
+#
+# Then import with: --json-file your_hashes.json
 # ---------------------------------------------------------------------------
 
-CURATED_IOCS = [
-    # Mimikatz variants
-    {
-        "file_hash": "92dc6ef532bbb6d6f9a9b5c7e8d2f4a1b3c5e7f9a2b4d6e8f0c2a4b6d8f0e2a",
-        "malware_name": "mimikatz",
-        "malware_family": "Credential Dumper",
-        "confidence": 100,
-        "source": "CURATED"
-    },
-    # PsExec (legitimate tool, commonly abused in OT attacks)
-    {
-        "file_hash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
-        "malware_name": "PsExec (abused)",
-        "malware_family": "Remote Admin Tool",
-        "confidence": 75,
-        "source": "CURATED"
-    },
-    # Industroyer/CRASHOVERRIDE (ICS-specific malware)
-    {
-        "file_hash": "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3",
-        "malware_name": "Industroyer",
-        "malware_family": "ICS Malware",
-        "confidence": 100,
-        "source": "CURATED"
-    },
-    # TRITON/TRISIS (safety system attack tool)
-    {
-        "file_hash": "c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4",
-        "malware_name": "TRITON/TRISIS",
-        "malware_family": "ICS Safety System Attack",
-        "confidence": 100,
-        "source": "CURATED"
-    },
-    # BlackEnergy (used in Ukrainian power grid attacks)
-    {
-        "file_hash": "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5",
-        "malware_name": "BlackEnergy",
-        "malware_family": "APT Malware",
-        "confidence": 100,
-        "source": "CURATED"
-    },
-    # Generic Cobalt Strike beacon (commonly used in ransomware pre-staging)
-    {
-        "file_hash": "e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6",
-        "malware_name": "Cobalt Strike Beacon",
-        "malware_family": "C2 Framework",
-        "confidence": 90,
-        "source": "CURATED"
-    },
-    # WannaCry ransomware (still relevant in unpatched plant networks)
-    {
-        "file_hash": "f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7",
-        "malware_name": "WannaCry",
-        "malware_family": "Ransomware",
-        "confidence": 100,
-        "source": "CURATED"
-    },
-    # NotPetya (supply chain attack, manufacturing sector impact)
-    {
-        "file_hash": "a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8",
-        "malware_name": "NotPetya",
-        "malware_family": "Destructive Wiper",
-        "confidence": 100,
-        "source": "CURATED"
-    },
-    # RubberDucky HID attack payload script
-    {
-        "file_hash": "b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9",
-        "malware_name": "RubberDucky Payload",
-        "malware_family": "HID Attack",
-        "confidence": 85,
-        "source": "CURATED"
-    },
-    # Emotet dropper
-    {
-        "file_hash": "c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0",
-        "malware_name": "Emotet",
-        "malware_family": "Banking Trojan / Dropper",
-        "confidence": 100,
-        "source": "CURATED"
-    }
-    # NOTE: Replace all placeholder hashes above with real SHA-256 values.
-    # Real hashes can be obtained from:
-    #   - VirusTotal: https://www.virustotal.com
-    #   - MalwareBazaar: https://bazaar.abuse.ch
-    #   - MISP: https://www.misp-project.org
-]
+CURATED_IOCS: list[dict] = []
 
 
 # ---------------------------------------------------------------------------

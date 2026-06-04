@@ -1,5 +1,11 @@
 # SentryShield v1.0 — Setup Guide
 
+> This guide covers two audiences:
+> - **Developer / Intern** — Sections 1–6 (build, test, dev mode)
+> - **IT Admin / End User** — Sections 7–12 (service install, DB init, deployment)
+
+---
+
 ## Prerequisites
 
 ### Windows Machine (dev / target)
@@ -13,10 +19,12 @@
 
 ---
 
+# DEVELOPER SETUP
+
 ## 1. Clone / Setup Repository
 
 ```cmd
-git clone <repo-url> SentryShield
+git clone https://github.com/Rizzy1857/SentryShield
 cd SentryShield
 ```
 
@@ -29,8 +37,10 @@ cd SentryPython
 python -m venv venv
 venv\Scripts\activate
 
-pip install yara-python schedule requests pytest
+pip install yara-python requests pytest
 ```
+
+> `schedule` is only needed if running `db_sync.py` in daemon mode (not needed in development).
 
 **Verify yara-python:**
 ```cmd
@@ -56,38 +66,14 @@ dotnet build SentryShield.sln
 dotnet test Tests/SentryCore.Tests/SentryCore.Tests.csproj --logger "console;verbosity=normal"
 ```
 
-> ⚠️ `VulnerabilityMatcherTests` will **fail** until you implement `IsVersionVulnerable()`, `ParseVersion()`, and `CompareVersions()` in `SentryCore/Engines/VulnerabilityMatcher.cs`. That's intentional — it's your Week 4 deliverable.
+> ✅ `VulnerabilityMatcherTests` — `IsVersionVulnerable()`, `ParseVersion()`, and `CompareVersions()` are implemented. All 40 NUnit tests should pass.
 
 ---
 
-## 4. Database Initialization
-
-The database initializes automatically on first service start. To manually seed:
-
-```cmd
-cd SentryPython
-venv\Scripts\activate
-
-:: Load curated manufacturing vulnerability list (offline)
-python cert_parser.py --db "C:\ProgramData\SentryShield\vulnerability.db" --curated-only
-
-:: Populate IOC hashes
-python ioc_populate.py --db "C:\ProgramData\SentryShield\vulnerability.db" --curated
-
-:: Optional: Pull from NVD (requires internet)
-python cert_parser.py --db "C:\ProgramData\SentryShield\vulnerability.db"
-
-:: Verify DB
-python cert_parser.py --db "C:\ProgramData\SentryShield\vulnerability.db" --stats
-```
-
----
-
-## 5. Run Python Tests
+## 4. Run Python Tests
 
 ```cmd
 cd Tests/SentryPython
-pip install pytest
 pytest tests/ -v
 ```
 
@@ -101,7 +87,7 @@ PASSED tests/test_sentryshield.py::TestYaraScanner::test_clean_file_no_matches
 
 ---
 
-## 6. Run as Console App (Development)
+## 5. Run as Console App (Development)
 
 ```cmd
 cd SentryService
@@ -112,7 +98,101 @@ The service runs as a console app in dev mode (no service registration needed).
 
 ---
 
-## 7. Install as Windows Service (Production)
+## 6. Open Admin Dashboard (Development)
+
+```cmd
+dotnet run --project SentryUI
+```
+
+---
+
+# IT ADMIN / END USER SETUP
+
+## 7. Get an NVD API Key (Required for Live Vulnerability Data)
+
+SentryShield pulls real-time CVE data from NIST NVD. An API key is **free** and gives you 10x the rate limit (much faster initial sync).
+
+1. Go to: **https://nvd.nist.gov/developers/request-an-api-key**
+2. Enter your work email address and submit
+3. Check your email — the key arrives within a few minutes
+4. Save it somewhere safe (you'll need it in Step 9)
+
+> Without an API key, the initial database sync will work but will take 2–3 hours.
+> With an API key, it takes about 15–20 minutes.
+
+---
+
+## 8. Create Required Directories
+
+```cmd
+mkdir "C:\ProgramData\SentryShield"
+mkdir "C:\ProgramData\SentryShield\backups"
+mkdir "C:\ProgramData\SentryShield\logs"
+mkdir "C:\SentryShield\Downloads"
+mkdir "C:\SentryShield\rules"
+mkdir "C:\SentryShield\scripts"
+```
+
+---
+
+## 9. Initialize the Vulnerability Database
+
+This is a **one-time step** that creates the SQLite database and populates it with live CVE data from NVD and CERT-In.
+
+```cmd
+cd SentryShield\SentryPython
+
+:: Activate Python environment
+venv\Scripts\activate
+
+:: Set your NVD API key (from Step 7)
+set NVD_API_KEY=your-api-key-here
+
+:: Run the bootstrapper — pulls last 1 year of CVEs from NVD + CERT-In
+python init_db.py --db "C:\ProgramData\SentryShield\vulnerability.db" --days-back 365
+```
+
+**What this does:**
+- Creates the full database schema (7 tables)
+- Pulls manufacturing-relevant CVEs from NIST NVD (keywords: SCADA, HMI, PLC, Siemens, Rockwell, Log4j, OpenSSL, and more)
+- Fetches CERT-In advisories, cross-references each CVE with NVD for version ranges
+- Prints a summary when done
+
+**Expected output:**
+```
+===========================================================
+  SentryShield Database Initialized
+===========================================================
+  Database     : C:\ProgramData\SentryShield\vulnerability.db
+  Size         : 8.42 MB
+
+  Vulnerabilities : 1247 total
+
+  By source:
+    NVD           1189
+    CERT-IN         58
+
+  By severity:
+    CRITICAL       312
+    HIGH           541
+    MEDIUM         338
+    LOW             56
+===========================================================
+```
+
+**Populate IOC hashes:**
+```cmd
+python ioc_populate.py --db "C:\ProgramData\SentryShield\vulnerability.db" --curated
+```
+
+**Verify the database:**
+```cmd
+python cert_parser.py --db "C:\ProgramData\SentryShield\vulnerability.db" --stats
+```
+
+---
+
+## 10. Install as Windows Service
 
 ```cmd
 :: Build release binary
@@ -124,45 +204,54 @@ sc create SentryShield binPath= "C:\SentryShield\bin\SentryService.exe" start= a
 :: Start service
 sc start SentryShield
 
-:: Verify service is running
+:: Verify
 sc query SentryShield
 ```
 
-**Create required directories:**
-```cmd
-mkdir "C:\ProgramData\SentryShield"
-mkdir "C:\ProgramData\SentryShield\backups"
-mkdir "C:\ProgramData\SentryShield\logs"
-mkdir "C:\SentryShield\Downloads"
-mkdir "C:\SentryShield\rules"
-```
-
-**Copy YARA rules:**
+**Copy YARA rules and Python scripts:**
 ```cmd
 copy rules\malware.yar C:\SentryShield\rules\
-```
-
-**Copy Python scripts:**
-```cmd
 xcopy SentryPython C:\SentryShield\scripts\ /E /I
 ```
 
 ---
 
-## 8. Open Admin Dashboard
+## 11. Set Up Nightly Database Sync (Task Scheduler)
 
+SentryShield updates its vulnerability database nightly by pulling the latest CVEs from NVD and new CERT-In advisories automatically.
+
+**Create the scheduled task:**
 ```cmd
-dotnet run --project SentryUI
+schtasks /create ^
+  /tn "SentryShield DB Sync" ^
+  /tr "C:\SentryShield\scripts\venv\Scripts\python.exe C:\SentryShield\scripts\db_sync.py --db C:\ProgramData\SentryShield\vulnerability.db --once" ^
+  /sc DAILY ^
+  /st 06:00 ^
+  /ru SYSTEM ^
+  /f
 ```
 
-Or run the published executable:
+**Verify the task was created:**
 ```cmd
-C:\SentryShield\bin\SentryUI.exe
+schtasks /query /tn "SentryShield DB Sync"
+```
+
+**Run the sync manually to test:**
+```cmd
+schtasks /run /tn "SentryShield DB Sync"
+```
+
+> The sync runs at 06:00 daily. It pulls only the previous 24h of NVD deltas and the last 7 days of CERT-In advisories, so it completes in under 5 minutes and does not affect the NVD API key rate limit.
+
+**Set the NVD API key for the SYSTEM account (so the scheduled task can use it):**
+```cmd
+:: Add to system-wide environment variables
+setx NVD_API_KEY "your-api-key-here" /M
 ```
 
 ---
 
-## 9. Configure Trusted Suppliers
+## 12. Configure Trusted Suppliers
 
 Edit (or create) `C:\ProgramData\SentryShield\trusted_suppliers.json`:
 
@@ -183,9 +272,11 @@ Edit (or create) `C:\ProgramData\SentryShield\trusted_suppliers.json`:
 ]
 ```
 
+Files dropped into `C:\SentryShield\Downloads\<SupplierName>\` are automatically validated.
+
 ---
 
-## 10. GPO Deployment (50 machines)
+## 13. GPO Deployment (50 machines)
 
 Deploy via Group Policy:
 ```
@@ -206,15 +297,17 @@ Computer Configuration > Software Settings > Software Installation
 |-------|-----|
 | Service fails to start | Check Windows Event Viewer > Application for SentryShield source |
 | YARA scan returns no results | Verify Python path in `appsettings.json` → `Paths.PythonExe` |
-| DB not found | Run manual init: `python cert_parser.py --db <path> --curated-only` |
-| USB scan doesn't trigger | Verify `__InstanceCreationEvent` WMI subscription is not blocked by AV |
-| WMI error on software enum | Run as Administrator; check WMI repository with `winmgmt /verifyrepository` |
+| DB empty / not found | Run `python init_db.py --db <path>` (see Step 9) |
+| NVD sync very slow | Set `NVD_API_KEY` — without it you're rate-limited to 5 req/30s |
+| CERT-In sync returns 0 advisories | CERT-In RSS may be temporarily unavailable — NVD data still loads fine |
+| USB scan doesn't trigger | Verify `__InstanceCreationEvent` WMI subscription not blocked by AV |
+| WMI error on software enum | Run as Administrator; check `winmgmt /verifyrepository` |
 
 ---
 
 ## Environment Variables
 
 | Variable | Purpose | Default |
-|----------|---------|---------|
-| `NVD_API_KEY` | NVD API key (higher rate limits) | None (anonymous) |
+|----------|---------|---------| 
+| `NVD_API_KEY` | NVD API key — free from nvd.nist.gov (10x faster sync) | None (anonymous, rate-limited) |
 | `SENTRYSHIELD_DB` | Override DB path | `C:\ProgramData\SentryShield\vulnerability.db` |

@@ -287,10 +287,33 @@ public class SupplierFileValidator : Interfaces.IValidator
 
     private static Dictionary<string, SupplierManifest> LoadDefaultManifests()
     {
-        // TODO: In production, load from a signed JSON manifest file at:
-        // C:\ProgramData\SentryShield\trusted_suppliers.json
-        // For now, return empty — all suppliers not in this dict are blocked.
-        return new Dictionary<string, SupplierManifest>(StringComparer.OrdinalIgnoreCase);
+        // Load from C:\ProgramData\SentryShield\trusted_suppliers.json
+        // Created by SentrySetup.ps1 during deployment, or edited manually.
+        // Falls back to empty (block-all) if the file does not exist yet.
+        var path = Environment.GetEnvironmentVariable("SENTRYSHIELD_SUPPLIERS")
+                   ?? @"C:\ProgramData\SentryShield\trusted_suppliers.json";
+
+        if (!File.Exists(path))
+            return new Dictionary<string, SupplierManifest>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var json = File.ReadAllText(path);
+            var list = System.Text.Json.JsonSerializer.Deserialize<List<SupplierManifest>>(
+                json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return list?.ToDictionary(
+                s => s.SupplierName,
+                StringComparer.OrdinalIgnoreCase)
+                ?? new Dictionary<string, SupplierManifest>(StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            // Log and fail open — block all if manifest is corrupt
+            Console.Error.WriteLine($"[SupplierFileValidator] Failed to load manifest from '{path}': {ex.Message}");
+            return new Dictionary<string, SupplierManifest>(StringComparer.OrdinalIgnoreCase);
+        }
     }
 }
 

@@ -333,8 +333,14 @@ def _extract_product_name(cve: dict) -> str:
 def _extract_version_ranges(cve: dict) -> list[dict]:
     """
     Extract version ranges from CPE match criteria.
-    Returns list of {min, max, include_min, include_max} dicts.
-    This is what IsVersionVulnerable() in VulnerabilityMatcher.cs consumes.
+    Returns list of {min, max, include_min, include_max} dicts
+    consumed by VulnerabilityMatcher.IsVersionVulnerable().
+
+    NVD fields:
+      versionStartIncluding → min, include_min=True  (>= min)
+      versionStartExcluding → min, include_min=False (>  min)
+      versionEndIncluding   → max, include_max=True  (<= max)
+      versionEndExcluding   → max, include_max=False (<  max)
     """
     ranges = []
     try:
@@ -343,20 +349,26 @@ def _extract_version_ranges(cve: dict) -> list[dict]:
                 for match in node.get("cpeMatch", []):
                     if not match.get("vulnerable", False):
                         continue
+
+                    v_start_inc = match.get("versionStartIncluding")
+                    v_start_exc = match.get("versionStartExcluding")
+                    v_end_inc   = match.get("versionEndIncluding")
+                    v_end_exc   = match.get("versionEndExcluding")
+
                     version_range = {
-                        "min": match.get("versionStartIncluding")
-                               or match.get("versionStartExcluding"),
-                        "max": match.get("versionEndIncluding")
-                               or match.get("versionEndExcluding"),
-                        "include_min": "versionStartIncluding" in match,
-                        "include_max": "versionEndIncluding" in match
+                        "min":         v_start_inc or v_start_exc,
+                        "max":         v_end_inc   or v_end_exc,
+                        "include_min": v_start_inc is not None,  # True = >=, False = >
+                        "include_max": v_end_inc   is not None,  # True = <=, False = <
                     }
-                    # Only add if at least one bound is set
+
+                    # Only store if at least one bound is present
                     if version_range["min"] or version_range["max"]:
                         ranges.append(version_range)
     except (KeyError, TypeError):
         pass
     return ranges
+
 
 
 def _extract_remediation(cve: dict) -> str:
