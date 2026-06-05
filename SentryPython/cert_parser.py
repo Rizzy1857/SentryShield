@@ -26,6 +26,10 @@ import sys
 import time
 import logging
 import argparse
+import ssl
+import urllib.parse
+import logging
+import argparse
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.request import urlopen, Request
@@ -38,6 +42,8 @@ logging.basicConfig(
 )
 log = logging.getLogger("cert_parser")
 
+# Bypass macOS missing root certificates for urllib
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -89,7 +95,8 @@ class NVDFeedParser:
             params = f"?resultsPerPage={results_per_page}&startIndex={start_index}"
             params += f"&pubStartDate={pub_start}&pubEndDate={pub_end}"
             if keyword:
-                params += f"&keywordSearch={keyword}&keywordExactMatch"
+                encoded_keyword = urllib.parse.quote(keyword)
+                params += f"&keywordSearch={encoded_keyword}&keywordExactMatch"
 
             url = NVD_BASE_URL + params
             log.info("Fetching NVD: %s", url[:100])

@@ -257,3 +257,6 @@ desktop.ini
 trusted_keys.json
 ai_strategy.md
 idea.md
+
+# ---- Findings ---- #
+/findings/*

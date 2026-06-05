@@ -7,22 +7,22 @@
     ═══════════════════════════════════════════════════════ -->
 
     <!-- COLOR PALETTE -->
-    <Color x:Key="BgDeep">#0D1117</Color>
-    <Color x:Key="BgCard">#161B22</Color>
-    <Color x:Key="BgHover">#1C2128</Color>
-    <Color x:Key="BorderColor">#30363D</Color>
+    <Color x:Key="BgDeep">#0B1320</Color>
+    <Color x:Key="BgCard">#141C2A</Color>
+    <Color x:Key="BgHover">#1D283A</Color>
+    <Color x:Key="BorderColor">#2A384D</Color>
     <Color x:Key="TextPrimary">#E6EDF3</Color>
     <Color x:Key="TextSecondary">#8B949E</Color>
     <Color x:Key="TextMuted">#484F58</Color>
-    <Color x:Key="AccentBlue">#58A6FF</Color>
-    <Color x:Key="AccentTeal">#3FB950</Color>
+    <Color x:Key="AccentBlue">#4A9EFF</Color>
+    <Color x:Key="AccentTeal">#00B4A0</Color>
 
     <!-- SEVERITY COLORS -->
     <Color x:Key="Critical">#FF4C4C</Color>
     <Color x:Key="High">#FF8C00</Color>
     <Color x:Key="Medium">#E3B341</Color>
-    <Color x:Key="Low">#58A6FF</Color>
-    <Color x:Key="Safe">#3FB950</Color>
+    <Color x:Key="Low">#4A9EFF</Color>
+    <Color x:Key="Safe">#00B4A0</Color>
 
     <!-- BRUSHES -->
     <SolidColorBrush x:Key="BrushBgDeep" Color="{StaticResource BgDeep}"/>
@@ -103,6 +103,13 @@
         <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>
 
+    <!-- MONOSPACE TEXT -->
+    <Style x:Key="MonospaceText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Consolas"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+    </Style>
+
     <!-- PRIMARY BUTTON -->
     <Style x:Key="PrimaryButton" TargetType="Button">
         <Setter Property="Background" Value="{StaticResource BrushAccentBlue}"/>
@@ -137,6 +144,23 @@
         </Setter>
     </Style>
 
+    <!-- COMBOBOX ITEM -->
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Background" Value="{StaticResource BrushBgCard}"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource BrushBgHover}"/>
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="#1C2A3A"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- SECONDARY / OUTLINE BUTTON -->
     <Style x:Key="SecondaryButton" TargetType="Button">
         <Setter Property="Background" Value="Transparent"/>
@@ -161,6 +185,10 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="Background" Value="#1C2A3A"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Background" Value="#101D2C"/>
+                            <Setter Property="BorderBrush" Value="#3888D4"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

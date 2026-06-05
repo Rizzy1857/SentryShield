@@ -163,12 +163,11 @@ CREATE TABLE IF NOT EXISTS trusted_suppliers (
 -- ── Schema version tracking ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS schema_version (
     version    INTEGER PRIMARY KEY,
-    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    notes      TEXT
+    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT OR IGNORE INTO schema_version (version, notes)
-VALUES (1, 'SentryShield v1.0 initial schema');
+INSERT OR IGNORE INTO schema_version (version)
+VALUES (1);
 """
 
 
