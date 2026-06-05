@@ -1,0 +1,67 @@
+<Page x:Class="SentryShield.UI.Views.ScanView"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:vm="clr-namespace:SentryShield.UI.ViewModels"
+      Title="Scanner"
+      Background="{StaticResource BrushBgDeep}">
+
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Page.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Information -->
+        <Border Grid.Row="0" Background="{StaticResource BrushBgCard}" 
+                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
+                CornerRadius="6" Padding="16,12" Margin="0,0,0,16">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Target: " Foreground="{StaticResource BrushTextMuted}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding CurrentScanTarget}" Foreground="{StaticResource BrushAccentBlue}" FontWeight="SemiBold"/>
+                
+                <TextBlock Text="   |   " Foreground="{StaticResource BrushBorder}"/>
+                
+                <TextBlock Text="Status: " Foreground="{StaticResource BrushTextMuted}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource BrushTextSecondary}"/>
+                
+                <!-- Animated scanning indicator -->
+                <TextBlock Text=" 🔄" Foreground="{StaticResource BrushAccentTeal}" 
+                           Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"
+                           Margin="8,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Terminal Output -->
+        <Border Grid.Row="1" Background="#05080E" 
+                BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
+                CornerRadius="6">
+            <ScrollViewer x:Name="TerminalScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding ScanLogs}" Margin="8">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" 
+                                       FontFamily="Consolas" 
+                                       FontSize="12" 
+                                       Foreground="#4A9EFF" 
+                                       Margin="0,1" 
+                                       TextWrapping="NoWrap"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Actions -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Command="{Binding RunScanCommand}"
+                    Content="▶ Run Manual Scan"
+                    Style="{StaticResource PrimaryButton}"
+                    Padding="24,10"/>
+        </StackPanel>
+    </Grid>
+</Page>

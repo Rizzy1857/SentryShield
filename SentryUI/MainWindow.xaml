@@ -213,6 +213,11 @@
             <TabItem Header="⚙  Settings">
                 <Frame Source="Views/SettingsView.xaml" NavigationUIVisibility="Hidden"/>
             </TabItem>
+
+            <!-- TAB 4: SCANNER -->
+            <TabItem Header="🔍  Scanner">
+                <Frame Source="Views/ScanView.xaml" NavigationUIVisibility="Hidden"/>
+            </TabItem>
         </TabControl>
 
         <!-- ═══════════════════════════════════════════════════

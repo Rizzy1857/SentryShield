@@ -136,6 +136,15 @@ public class DashboardViewModel : INotifyPropertyChanged
         set { _statusMessage = value; OnPropertyChanged(); }
     }
 
+    private string _currentScanTarget = "Idle";
+    public string CurrentScanTarget
+    {
+        get => _currentScanTarget;
+        set { _currentScanTarget = value; OnPropertyChanged(); }
+    }
+
+    public ObservableCollection<string> ScanLogs { get; } = new ObservableCollection<string>();
+
     private string _lastScanText = "Last scan: Never";
     public string LastScanText
     {
@@ -254,10 +263,12 @@ public class DashboardViewModel : INotifyPropertyChanged
 
         IsScanning = true;
         StatusMessage = $"Scanning {folderPath}...";
+        CurrentScanTarget = folderPath;
+        ScanLogs.Clear();
 
         try
         {
-            var logger = new NullLogger();
+            var logger = new SentryShield.UI.Utils.ObservableLogger(ScanLogs, App.Current.Dispatcher);
             var appDir = AppDomain.CurrentDomain.BaseDirectory;
             var runner = new SentryShield.Core.IPC.ProcessRunner(
                 logger, 
@@ -354,14 +365,6 @@ public class DashboardViewModel : INotifyPropertyChanged
         if (!finding.IsReviewing)
         {
             finding.IsReviewing = true;
-            
-            // Force UI update so DataGrid sees the change (since Finding doesn't implement INotifyPropertyChanged)
-            var index = Findings.IndexOf(finding);
-            if (index >= 0)
-            {
-                Findings[index] = null;
-                Findings[index] = finding;
-            }
             return;
         }
 

@@ -197,7 +197,7 @@
                                 <TextBlock Text="REMEDIATION"
                                            FontSize="10" FontWeight="SemiBold"
                                            Foreground="{StaticResource BrushTextMuted}"/>
-                                <TextBlock Text="{Binding Remediation}"
+                                <TextBlock Text="{Binding Remediation, Converter={x:Static conv:SentenceNewlineConverter.Instance}}"
                                            TextWrapping="Wrap"
                                            Foreground="{StaticResource BrushAccentTeal}"
                                            FontSize="12"/>

@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+
 namespace SentryShield.Core.Models;
 
 // Models are defined here in SentryDatabase.dll but under the SentryShield.Core.Models
@@ -8,7 +11,7 @@ namespace SentryShield.Core.Models;
 /// A security detection event — the fundamental unit of output.
 /// Persisted to the `findings` table.
 /// </summary>
-public class Finding
+public class Finding : INotifyPropertyChanged
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string MachineName { get; set; } = Environment.MachineName;
@@ -25,7 +28,18 @@ public class Finding
     public string? Notes { get; set; }
     
     // Transient property for UI state
-    public bool IsReviewing { get; set; } = false;
+    private bool _isReviewing = false;
+    public bool IsReviewing 
+    { 
+        get => _isReviewing; 
+        set { _isReviewing = value; OnPropertyChanged(); } 
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }
 
 /// <summary>Result of a vulnerability database lookup.</summary>

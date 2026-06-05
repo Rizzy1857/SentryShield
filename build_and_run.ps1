@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$BuildOnly,
     [switch]$RunOnly,
     [switch]$ForceLegacy
@@ -7,7 +7,10 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host " SentryShield Intelligent Launcher" -ForegroundColor Cyan
+Write-Host "         ▄▖    ▗     ▄▖▌ ▘  ▜  ▌" -ForegroundColor Cyan
+Write-Host "         ▚ █▌▛▌▜▘▛▘▌▌▚ ▛▌▌█▌▐ ▛▌" -ForegroundColor Cyan
+Write-Host "         ▄▌▙▖▌▌▐▖▌ ▙▌▄▌▌▌▌▙▖▐▖▙▌" -ForegroundColor Cyan
+Write-Host "                  ▄▌           " -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # Handle UNC paths in Parallels
