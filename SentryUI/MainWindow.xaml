@@ -41,8 +41,7 @@
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="SENTRYSHIELD"
                                    FontSize="15" FontWeight="Bold"
-                                   Foreground="{StaticResource BrushAccentBlue}"
-                                   LetterSpacing="2"/>
+                                   Foreground="{StaticResource BrushAccentBlue}"/>
                         <TextBlock Text="Manufacturing Security v1.0"
                                    FontSize="10" Foreground="{StaticResource BrushTextMuted}"/>
                     </StackPanel>
@@ -50,8 +49,8 @@
 
                 <!-- System status -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal"
-                            VerticalAlignment="Center" Spacing="16">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
                         <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                  Margin="0,0,6,0">
                             <Ellipse.Fill>
@@ -77,7 +76,12 @@
         <Border Grid.Row="1"
                 Background="#0D1117"
                 Padding="20,16">
-            <StackPanel Orientation="Horizontal" Spacing="12">
+            <StackPanel Orientation="Horizontal">
+                <StackPanel.Resources>
+                    <Style TargetType="{x:Type FrameworkElement}">
+                        <Setter Property="Margin" Value="0,0,12,0"/>
+                    </Style>
+                </StackPanel.Resources>
 
                 <!-- CRITICAL tile -->
                 <Border Style="{StaticResource SummaryTile}"
@@ -212,11 +216,11 @@
 
                 <!-- Action buttons -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal"
-                            Spacing="8" VerticalAlignment="Center">
+                            VerticalAlignment="Center">
                     <Button Style="{StaticResource SecondaryButton}"
                             Content="Export JSON"
                             Command="{Binding ExportJsonCommand}"
-                            Padding="12,4" FontSize="11"/>
+                            Padding="12,4" FontSize="11" Margin="0,0,8,0"/>
                     <Button Style="{StaticResource PrimaryButton}"
                             Content="▶  Run Scan Now"
                             Command="{Binding RunScanCommand}"

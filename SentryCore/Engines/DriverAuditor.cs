@@ -152,7 +152,7 @@ public class DriverAuditor
                     var dateStr = obj["DriverDate"]?.ToString();
                     if (!string.IsNullOrEmpty(dateStr) && dateStr.Length >= 8)
                     {
-                        if (DateTime.TryParseExact(dateStr[..8], "yyyyMMdd",
+                        if (DateTime.TryParseExact(dateStr!.Substring(0, Math.Min(8, dateStr.Length)), "yyyyMMdd",
                             null, System.Globalization.DateTimeStyles.None, out var parsedDate))
                         {
                             driverDate = parsedDate;

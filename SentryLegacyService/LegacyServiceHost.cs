@@ -1,3 +1,7 @@
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using SentryShield.Core.Models;
 using System.ServiceProcess;
 using System.Threading;
 using Microsoft.Extensions.Configuration;

@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.2] — 2026-06-05
+
+### Added — UI Engine Integration & Build Automation
+
+- **`SentryUI` Live Core Integration** — Replaced the mock dashboard UI actions with live invocations of the `SentryCore` engines directly within the WPF application.
+  - **Scan USB/Folder**: The "Scan" button now launches a native Folder Picker and executes an immediate, deep file analysis using `USBMonitor.ScanUSBDriveAsync()`. Results are saved to `ScanHistoryDb` and instantly refresh the findings grid.
+  - **Sync Database**: Wired the "Sync CVE Database" button to inject sample NVD CVE records (`BatchUpsertAsync`), preparing the UI architecture for a live API integration.
+  - **Open DB Folder**: Added a quick-access button to open the SQLite database storage location (`C:\ProgramData\SentryShield`) in Windows Explorer.
+- **Smart Build Automation** — Added `build_and_run.bat` and `build_and_run.ps1` which cleanly resolve `.NET 4.8` vs `.NET 10.0-windows` MSBuild conflicts, seamlessly compiling the legacy and modern pipelines respectively, while properly handling UNC path boundaries in Parallels VMs.
+
+### Fixed
+- **UI Crash on Startup**: Fixed a `XamlParseException` in `FindingsView.xaml` caused by a `StaticResource` referencing the `CellStyle` before it was declared in the markup.
+- **SQLite Versioning Conflicts**: Bumped `Microsoft.Data.Sqlite` to `8.0.0` globally across `SentryService` and `SentryCore` to eliminate `NU1605` package downgrade errors and resolve missing `hostfxr.dll` runtime issues.
+- **WPF Native Property Translation**: Removed WinUI 3 properties (`LetterSpacing`, `TextTransform`, `Spacing`) from WPF views and replaced them with functional `Margin` native equivalents.
+
+---
+
 ## [v1.1] — 2026-06-04
 
 ### Added — Live Vulnerability Intelligence Pipeline & Remaining Stubs

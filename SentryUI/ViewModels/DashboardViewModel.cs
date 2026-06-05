@@ -41,6 +41,8 @@ public class DashboardViewModel : INotifyPropertyChanged
         RunScanCommand = new RelayCommand(async () => await RunScanAsync(), () => IsNotScanning);
         ExportJsonCommand = new RelayCommand(ExportJson);
         AcknowledgeCommand = new RelayCommand<Finding>(AcknowledgeFinding);
+        SyncDatabaseCommand = new RelayCommand(async () => await SyncDatabaseAsync(), () => IsNotScanning);
+        OpenDbFolderCommand = new RelayCommand(OpenDbFolder);
 
         // Initial data load
         _ = RefreshAsync();
@@ -162,6 +164,8 @@ public class DashboardViewModel : INotifyPropertyChanged
     public ICommand RunScanCommand { get; }
     public ICommand ExportJsonCommand { get; }
     public ICommand AcknowledgeCommand { get; }
+    public ICommand SyncDatabaseCommand { get; }
+    public ICommand OpenDbFolderCommand { get; }
 
     // -------------------------------------------------------------------------
     // Data operations
@@ -203,16 +207,58 @@ public class DashboardViewModel : INotifyPropertyChanged
     private async Task RunScanAsync()
     {
         if (IsScanning) return;
+        
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Select Drive or Folder to Scan for Threats",
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog() != true) return;
+
+        var folderPath = dialog.FolderName;
+
         IsScanning = true;
+        StatusMessage = $"Scanning {folderPath}...";
 
         try
         {
-            // Trigger scan via Windows Service control (or direct engine call for dashboard)
-            // For v1.0: Show message asking user to trigger via service
-            // In v2.0: Named Pipe message to service
-            await Task.Delay(500); // Simulate scan start
+            var logger = new NullLogger();
+            var appDir = AppDomain.CurrentDomain.BaseDirectory;
+            var runner = new SentryShield.Core.IPC.ProcessRunner(
+                logger, 
+                "python", 
+                System.IO.Path.Combine(appDir, "python_scripts"), 
+                System.IO.Path.Combine(appDir, "yara_rules")
+            );
+            var iocDb = new SentryShield.Database.IOCDb(logger, LoadDbPath());
+            var monitor = new SentryShield.Core.Engines.USBMonitor(logger, runner, iocDb);
+            
+            // Execute the actual core engine scan!
+            var threats = await monitor.ScanUSBDriveAsync(folderPath);
 
-            StatusMessage = "Scan triggered. Results will appear within 30 seconds.";
+            if (_db != null && threats.Any())
+            {
+                var findingsToSave = threats.Select(t => new Finding
+                {
+                    FindingType = "usb_threat",
+                    Severity = t.Severity,
+                    Title = $"USB Threat: {t.FileName}",
+                    Description = t.Description,
+                    AffectedComponent = t.FilePath,
+                    Remediation = t.Remediation,
+                    DetectionTimestamp = t.DetectedAt,
+                    Notes = $"Type: {t.ThreatType} | Confidence: {t.Confidence}%"
+                }).ToList();
+
+                await _db.SaveFindingsAsync(findingsToSave);
+                StatusMessage = $"Scan complete. Found {threats.Count} threats.";
+            }
+            else
+            {
+                StatusMessage = "Scan complete. No threats found.";
+            }
+
             await RefreshAsync();
         }
         catch (Exception ex)
@@ -273,6 +319,77 @@ public class DashboardViewModel : INotifyPropertyChanged
 
         await _db.AcknowledgeFindingAsync(finding.Id, "Acknowledged via dashboard");
         await RefreshAsync();
+    }
+
+    private async Task SyncDatabaseAsync()
+    {
+        if (_vulnDb == null) return;
+        if (IsScanning) return;
+        
+        IsScanning = true;
+        StatusMessage = "Syncing CVE Database with mock data...";
+        try
+        {
+            await Task.Delay(1500); // Simulate network latency
+            
+            var mockData = new List<SentryShield.Database.VulnerabilityDb.VulnerabilityRecord>
+            {
+                new SentryShield.Database.VulnerabilityDb.VulnerabilityRecord
+                {
+                    Id = $"CVE-2026-{new Random().Next(1000,9999)}",
+                    ProductName = "Siemens S7",
+                    AffectedVersions = "[\"1500\", \"1200\"]",
+                    CvssScore = 9.8,
+                    Severity = "CRITICAL",
+                    Description = "Mock CVE: Remote code execution vulnerability in PROFINET stack.",
+                    Remediation = "Apply firmware update V2.9.4",
+                    Source = "NVD-MOCK",
+                    FirstSeen = DateTime.UtcNow.ToString("o")
+                },
+                new SentryShield.Database.VulnerabilityDb.VulnerabilityRecord
+                {
+                    Id = $"CVE-2026-{new Random().Next(1000,9999)}",
+                    ProductName = "Rockwell Studio 5000",
+                    AffectedVersions = "[\"v33\", \"v34\"]",
+                    CvssScore = 7.5,
+                    Severity = "HIGH",
+                    Description = "Mock CVE: Privilege escalation via unquoted service path.",
+                    Remediation = "Update to v35 or manually quote service path in registry.",
+                    Source = "NVD-MOCK",
+                    FirstSeen = DateTime.UtcNow.ToString("o")
+                }
+            };
+            
+            await _vulnDb.BulkUpsertAsync(mockData);
+            if (_db != null) {
+                await _db.RecordScanAsync("vulnerability", mockData.Count, 1, 1, 0, 2);
+            }
+            
+            StatusMessage = "CVE Sync complete. Mock data injected.";
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Sync failed: {ex.Message}";
+        }
+        finally
+        {
+            IsScanning = false;
+        }
+    }
+
+    private void OpenDbFolder()
+    {
+        var dbPath = LoadDbPath();
+        var dir = Path.GetDirectoryName(dbPath);
+        if (Directory.Exists(dir))
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = dir,
+                UseShellExecute = true
+            });
+        }
     }
 
     // -------------------------------------------------------------------------

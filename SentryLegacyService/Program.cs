@@ -1,3 +1,4 @@
+using System;
 using System.ServiceProcess;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -53,8 +54,9 @@ internal static class Program
         var yaraGuard = new LegacyYaraGuard(logger, config);
 
         // Ensure DB schema is initialised before first scan
-        var dbInit = new DatabaseInitializer(logger, config.Paths.DatabasePath);
-        dbInit.Initialize();
+        var dbLogger = new Microsoft.Extensions.Logging.Abstractions.NullLogger<DatabaseInitializer>();
+        var dbInit = new DatabaseInitializer(dbLogger, config.Paths.DatabasePath);
+        dbInit.InitializeAsync().GetAwaiter().GetResult();
 
         // ── Service ───────────────────────────────────────────────────────────
         var host = new LegacyServiceHost(logger, config, historyDb, vulnDb, eventLog, yaraGuard);

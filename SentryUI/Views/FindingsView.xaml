@@ -2,9 +2,25 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:vm="clr-namespace:SentryShield.UI.ViewModels"
+      xmlns:conv="clr-namespace:SentryShield.UI.Converters"
       Title="Findings"
       Background="{StaticResource BrushBgDeep}">
 
+    <Page.Resources>
+        <!-- Cell text styles -->
+        <Style x:Key="CellStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+        <Style x:Key="CellStyleMuted" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+    </Page.Resources>
     <Grid Margin="4,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -74,7 +90,7 @@
                             <Border Style="{StaticResource SeverityBadge}"
                                     Margin="8,4">
                                 <Border.Background>
-                                    <MultiBinding Converter="{x:Static vm:SeverityToBrushConverter.Instance}">
+                                    <MultiBinding Converter="{x:Static conv:SeverityToBrushConverter.Instance}">
                                         <Binding Path="Severity"/>
                                     </MultiBinding>
                                 </Border.Background>
@@ -136,7 +152,12 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0" Spacing="4">
+                            <StackPanel Grid.Column="0">
+                                <StackPanel.Resources>
+                                    <Style TargetType="{x:Type FrameworkElement}">
+                                        <Setter Property="Margin" Value="0,0,0,4"/>
+                                    </Style>
+                                </StackPanel.Resources>
                                 <TextBlock Text="DESCRIPTION"
                                            FontSize="10" FontWeight="SemiBold"
                                            Foreground="{StaticResource BrushTextMuted}"/>
@@ -146,7 +167,12 @@
                                            FontSize="12"/>
                             </StackPanel>
 
-                            <StackPanel Grid.Column="1" Margin="16,0,0,0" Spacing="4">
+                            <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                                <StackPanel.Resources>
+                                    <Style TargetType="{x:Type FrameworkElement}">
+                                        <Setter Property="Margin" Value="0,0,0,4"/>
+                                    </Style>
+                                </StackPanel.Resources>
                                 <TextBlock Text="REMEDIATION"
                                            FontSize="10" FontWeight="SemiBold"
                                            Foreground="{StaticResource BrushTextMuted}"/>
@@ -172,20 +198,4 @@
         </TextBlock>
 
     </Grid>
-
-    <Page.Resources>
-        <!-- Cell text styles -->
-        <Style x:Key="CellStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-        </Style>
-        <Style x:Key="CellStyleMuted" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-        </Style>
-    </Page.Resources>
 </Page>

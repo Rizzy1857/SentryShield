@@ -29,10 +29,11 @@
     <!-- Microsoft.Extensions.Configuration for JSON config reading -->
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.0"/>
     <!-- Newtonsoft.Json for all JSON needs (net48 has no System.Text.Json) -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <!-- SQLite access -->
-    <PackageReference Include="System.Data.SQLite" Version="1.0.118" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>

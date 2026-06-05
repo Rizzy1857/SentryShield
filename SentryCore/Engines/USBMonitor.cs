@@ -44,7 +44,7 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
         [".xlsx"] = new[] { new byte[] { 0x50, 0x4B } },           // ZIP (OOXML)
     };
 
-    private const double HighEntropyThreshold = 7.8;
+    private const double HighEntropyThreshold = 7.5;
 
     // Extensions commonly used for compressed/encrypted firmware or binary blobs
     // in manufacturing environments. These are EXPECTED to have high entropy.
@@ -206,11 +206,7 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
             var jsonResult = await _processRunner.RunYaraScanAsync(drivePath);
             if (string.IsNullOrWhiteSpace(jsonResult)) return threats;
 
-#if NET48
-            var matches = Newtonsoft.Json.JsonConvert.DeserializeObject<List<YaraMatch>>(jsonResult);
-#else
             var matches = System.Text.Json.JsonSerializer.Deserialize<List<YaraMatch>>(jsonResult);
-#endif
             if (matches == null) return threats;
 
             foreach (var match in matches)
@@ -335,7 +331,7 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
                 DevicePath = drivePath,
                 FilePath = filePath,
                 FileName = Path.GetFileName(filePath),
-                Description = $"File hash {hash[..16]}... matches known malware IOC",
+                Description = $"File hash {hash.Substring(0, Math.Min(16, hash.Length))}... matches known malware IOC",
                 Remediation = "1. CRITICAL — eject the USB drive immediately without opening any other files. " +
                               "2. This file is a confirmed match against a known malware hash (MalwareBazaar IOC). " +
                               "3. Physically quarantine the drive (do not reuse or reformat without forensic imaging). " +
@@ -399,7 +395,11 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
         {
             var buf = new byte[count];
             using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            fs.Read(buf, 0, count);
+            int bytesRead = fs.Read(buf, 0, count);
+            if (bytesRead < count)
+            {
+                Array.Resize(ref buf, bytesRead);
+            }
             return buf;
         }
         catch
@@ -450,9 +450,18 @@ public class USBMonitor : Interfaces.IUSBMonitor, IDisposable
     // Supporting types for JSON deserialization of YARA results
     // -------------------------------------------------------------------------
 
-    private record YaraMatch(
-        string FilePath,
-        string RuleName,
-        string Severity,
-        string Description);
+  private class YaraMatch
+{
+    [System.Text.Json.Serialization.JsonPropertyName("file_path")]
+    public string FilePath { get; set; } = string.Empty;
+
+    [System.Text.Json.Serialization.JsonPropertyName("rule_name")]
+    public string RuleName { get; set; } = string.Empty;
+
+    [System.Text.Json.Serialization.JsonPropertyName("severity")]
+    public string Severity { get; set; } = string.Empty;
+
+    [System.Text.Json.Serialization.JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+}
 }

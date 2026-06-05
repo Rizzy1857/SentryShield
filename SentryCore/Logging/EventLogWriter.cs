@@ -9,22 +9,34 @@ namespace SentryShield.Core.Logging;
 /// </summary>
 public class EventLogWriter
 {
-    private const string Source = "SentryShield";
-    private const string Log = "Application";
-    private readonly ILogger _logger;
+    private readonly string _source;
+    private readonly string _log;
+    private readonly ILogger? _logger;
 
-    public EventLogWriter(ILogger logger)
+    /// <summary>Used by SentryService (net8) — full logger available.</summary>
+    public EventLogWriter(ILogger logger, string source = "SentryShield", string log = "Application")
     {
         _logger = logger;
+        _source = source;
+        _log    = log;
         EnsureSourceExists();
     }
 
-    private static void EnsureSourceExists()
+    /// <summary>Used by SentryLegacyService (net48) — no DI logger available at startup.</summary>
+    public EventLogWriter(string source, string log = "Application")
+    {
+        _logger = null;
+        _source = source;
+        _log    = log;
+        EnsureSourceExists();
+    }
+
+    private void EnsureSourceExists()
     {
         try
         {
-            if (!EventLog.SourceExists(Source))
-                EventLog.CreateEventSource(Source, Log);
+            if (!EventLog.SourceExists(_source))
+                EventLog.CreateEventSource(_source, _log);
         }
         catch (Exception)
         {
@@ -62,12 +74,12 @@ public class EventLogWriter
     {
         try
         {
-            EventLog.WriteEntry(Source, message, type, eventId);
+            EventLog.WriteEntry(_source, message, type, eventId);
         }
         catch (Exception ex)
         {
             // Fall back to ILogger if Event Log write fails
-            _logger.LogError(ex, "Failed to write to Event Log: {Message}", message);
+            _logger?.LogError(ex, "Failed to write to Event Log: {Message}", message);
         }
     }
 }

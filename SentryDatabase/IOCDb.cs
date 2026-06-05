@@ -1,4 +1,4 @@
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 
 namespace SentryShield.Database;
@@ -12,7 +12,7 @@ public class IOCDb : IDisposable
 {
     private readonly string _dbPath;
     private readonly ILogger _logger;
-    private SQLiteConnection? _conn;
+    private SqliteConnection? _conn;
 
     public IOCDb(ILogger logger, string dbPath)
     {
@@ -20,13 +20,13 @@ public class IOCDb : IDisposable
         _dbPath = dbPath;
     }
 
-    private SQLiteConnection Connection
+    private SqliteConnection Connection
     {
         get
         {
             if (_conn == null || _conn.State != System.Data.ConnectionState.Open)
             {
-                _conn = new SQLiteConnection($"Data Source={_dbPath};Version=3;");
+                _conn = new SqliteConnection($"Data Source={_dbPath}");
                 _conn.Open();
             }
             return _conn;
@@ -41,14 +41,14 @@ public class IOCDb : IDisposable
     /// Returns true if the given SHA-256 hash matches a known malware IOC.
     /// Indexed lookup — should be fast even with 100k+ entries.
     /// </summary>
-    public async Task<bool> IsKnownBadHashAsync(string sha256Hash)
+    public virtual async Task<bool> IsKnownBadHashAsync(string sha256Hash)
     {
         if (string.IsNullOrWhiteSpace(sha256Hash)) return false;
 
         try
         {
             const string sql = "SELECT COUNT(*) FROM iocs WHERE file_hash = @hash LIMIT 1";
-            using var cmd = new SQLiteCommand(sql, Connection);
+            using var cmd = new SqliteCommand(sql, Connection);
             cmd.Parameters.AddWithValue("@hash", sha256Hash.ToLower());
 
             var count = Convert.ToInt64(await cmd.ExecuteScalarAsync());
@@ -56,7 +56,7 @@ public class IOCDb : IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[IOCDb] Hash lookup failed: {Hash}", sha256Hash[..Math.Min(8, sha256Hash.Length)]);
+            _logger.LogError(ex, "[IOCDb] Hash lookup failed: {Hash}", sha256Hash.Substring(0, Math.Min(8, sha256Hash.Length)));
             return false; // Fail open — don't block on DB error
         }
     }
@@ -72,7 +72,7 @@ public class IOCDb : IDisposable
                 SELECT file_hash, malware_name, malware_family, confidence, source, detection_date
                 FROM iocs WHERE file_hash = @hash LIMIT 1";
 
-            using var cmd = new SQLiteCommand(sql, Connection);
+            using var cmd = new SqliteCommand(sql, Connection);
             cmd.Parameters.AddWithValue("@hash", sha256Hash.ToLower());
 
             using var reader = await cmd.ExecuteReaderAsync();
@@ -99,7 +99,7 @@ public class IOCDb : IDisposable
 
     public int GetTotalCount()
     {
-        using var cmd = new SQLiteCommand("SELECT COUNT(*) FROM iocs", Connection);
+        using var cmd = new SqliteCommand("SELECT COUNT(*) FROM iocs", Connection);
         return Convert.ToInt32(cmd.ExecuteScalar());
     }
 
@@ -123,7 +123,7 @@ public class IOCDb : IDisposable
                 VALUES
                     (@hash, @name, @family, @confidence, @source, @date)";
 
-            using var cmd = new SQLiteCommand(sql, Connection, txn);
+            using var cmd = new SqliteCommand(sql, Connection, txn);
 
             foreach (var record in records)
             {

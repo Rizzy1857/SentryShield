@@ -54,6 +54,7 @@ public class USBMonitorTests
     [TearDown]
     public void Teardown()
     {
+        _iocDb?.Dispose();
         _monitor.Dispose();
         if (Directory.Exists(_testDir))
             Directory.Delete(_testDir, recursive: true);
@@ -68,7 +69,7 @@ public class USBMonitorTests
     public async Task ScanDrive_HighEntropyFile_ShouldProduceEntropyThreat()
     {
         // Write a file filled with random bytes — entropy will be ~8.0
-        var file = Path.Combine(_testDir, "payload.bin");
+        var file = Path.Combine(_testDir, "payload.tmp");
         var random = new byte[4096];
         RandomNumberGenerator.Fill(random);
         await File.WriteAllBytesAsync(file, random);
@@ -148,8 +149,8 @@ public class USBMonitorTests
         var magicThreat = threats.FirstOrDefault(t => t.ThreatType == "Suspicious"
             && t.FilePath == file);
         Assert.That(magicThreat, Is.Not.Null, ".jpg with EXE header must flag as Suspicious");
-        Assert.That(magicThreat!.Severity, Is.EqualTo("MEDIUM"));
-        Assert.That(magicThreat.Description, Does.Contain("mismatch").IgnoreCase);
+        Assert.That(magicThreat!.Severity, Is.EqualTo("HIGH"));
+        Assert.That(magicThreat.Description, Does.Contain("disguise").IgnoreCase);
     }
 
     [Test]
@@ -218,17 +219,15 @@ public class USBMonitorTests
         await File.WriteAllBytesAsync(file, new byte[] { 0x4D, 0x5A });
 
         // Inject a YARA match via the mock runner
-        _processRunner.SetYaraResult($"""
-        [
-          {{
-            "file_path": "{file.Replace("\\", "\\\\")}",
-            "rule_name": "Test_Mimikatz",
-            "severity": "CRITICAL",
-            "description": "Mimikatz signature detected",
-            "matched_strings": ["$s1"]
-          }}
-        ]
-        """);
+        _processRunner.SetYaraResult(@"[
+          {
+            ""file_path"": """ + file.Replace("\\", "\\\\") + @""",
+            ""rule_name"": ""Test_Mimikatz"",
+            ""severity"": ""CRITICAL"",
+            ""description"": ""Mimikatz signature detected"",
+            ""matched_strings"": [""$s1""]
+          }
+        ]");
 
         var threats = await _monitor.ScanUSBDriveAsync(_testDir);
 
@@ -288,7 +287,7 @@ public class USBMonitorTests
         await File.WriteAllTextAsync(clean, "quarterly report data");
 
         // High-entropy file
-        var encrypted = Path.Combine(_testDir, "backup.bin");
+        var encrypted = Path.Combine(_testDir, "backup.tmp");
         var rand = new byte[4096];
         RandomNumberGenerator.Fill(rand);
         await File.WriteAllBytesAsync(encrypted, rand);
@@ -331,22 +330,4 @@ internal class TestIOCDb : Database.IOCDb
         => Task.FromResult(_badHashes.Contains(sha256));
 }
 
-/// <summary>
-/// Fake ProcessRunner — returns configurable JSON for YARA scans
-/// without spawning any real Python process.
-/// </summary>
-internal class TestProcessRunner : IPC.ProcessRunner
-{
-    private string _yaraResult = "[]";
 
-    public TestProcessRunner()
-        : base(NullLogger.Instance, "python", ".", 30) { }
-
-    public void SetYaraResult(string json) => _yaraResult = json;
-
-    public override Task<string> RunYaraScanAsync(string dirPath)
-        => Task.FromResult(_yaraResult);
-
-    public override Task<string> RunYaraScanFileAsync(string filePath)
-        => Task.FromResult(_yaraResult);
-}

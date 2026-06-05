@@ -1,6 +1,7 @@
 <Page x:Class="SentryShield.UI.Views.GatewayView"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:conv="clr-namespace:SentryShield.UI.Converters"
       Title="Gateway"
       Background="{StaticResource BrushBgDeep}">
 
@@ -21,7 +22,12 @@
                 Style="{StaticResource Card}"
                 Margin="0,0,0,12"
                 BorderBrush="#1F3A2B">
-            <StackPanel Orientation="Horizontal" Spacing="12">
+            <StackPanel Orientation="Horizontal">
+                <StackPanel.Resources>
+                    <Style TargetType="{x:Type FrameworkElement}">
+                        <Setter Property="Margin" Value="0,0,12,0"/>
+                    </Style>
+                </StackPanel.Resources>
                 <TextBlock Text="🔒" FontSize="20" VerticalAlignment="Center"/>
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="Gateway validation is active"
@@ -56,7 +62,12 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0" Spacing="4">
+                            <StackPanel Grid.Column="0">
+                                <StackPanel.Resources>
+                                    <Style TargetType="{x:Type FrameworkElement}">
+                                        <Setter Property="Margin" Value="0,0,0,4"/>
+                                    </Style>
+                                </StackPanel.Resources>
                                 <TextBlock Text="REASON / DETAILS"
                                            FontSize="10" FontWeight="SemiBold"
                                            Foreground="{StaticResource BrushTextMuted}"/>
@@ -66,7 +77,12 @@
                                            FontSize="12"/>
                             </StackPanel>
 
-                            <StackPanel Grid.Column="1" Margin="16,0,0,0" Spacing="4">
+                            <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                                <StackPanel.Resources>
+                                    <Style TargetType="{x:Type FrameworkElement}">
+                                        <Setter Property="Margin" Value="0,0,0,4"/>
+                                    </Style>
+                                </StackPanel.Resources>
                                 <TextBlock Text="RECOMMENDED STEPS"
                                            FontSize="10" FontWeight="SemiBold"
                                            Foreground="{StaticResource BrushTextMuted}"/>
@@ -150,7 +166,7 @@
 
                 <!-- FILE SIZE -->
                 <DataGridTextColumn Header="SIZE" Width="80"
-                                    Binding="{Binding FileSize, Converter={x:Static vm:FileSizeConverter.Instance}}">
+                                    Binding="{Binding FileSize, Converter={x:Static conv:FileSizeConverter.Instance}}">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}"/>

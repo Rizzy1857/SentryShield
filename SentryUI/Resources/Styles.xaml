@@ -74,7 +74,7 @@
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
-        <Setter Property="TextTransform" Value="Uppercase"/>
+
         <Setter Property="Margin" Value="0,0,0,8"/>
     </Style>
 
@@ -98,7 +98,7 @@
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="HorizontalAlignment" Value="Center"/>
-        <Setter Property="TextTransform" Value="Uppercase"/>
+
         <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
         <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>

@@ -110,7 +110,7 @@ public class SupplierFileValidator : Interfaces.IValidator
                                      "3. Request the supplier re-send the file and provide its correct SHA-256 hash. " +
                                      "4. Update trusted_suppliers.json only after confirming the new hash with the supplier directly.";
                 result.IsValid = false;
-                result.Details.Add($"❌ Hash mismatch: got {fileHash[..16]}... expected {expectedHash[..16]}...");
+                result.Details.Add($"❌ Hash mismatch: got {fileHash.Substring(0, Math.Min(16, fileHash.Length))}... expected {expectedHash.Substring(0, Math.Min(16, expectedHash.Length))}...");
                 return result;
             }
             result.Details.Add($"✓ File hash verified against manifest");
@@ -124,11 +124,7 @@ public class SupplierFileValidator : Interfaces.IValidator
         var yaraJson = await _processRunner.RunYaraScanFileAsync(filePath);
         if (!string.IsNullOrWhiteSpace(yaraJson))
         {
-#if NET48
-            var matches = JsonConvert.DeserializeObject<List<Dictionary<string, string>>>(yaraJson);
-#else
-            var matches = JsonSerializer.Deserialize<List<Dictionary<string, string>>>(yaraJson);
-#endif
+            var matches = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, string>>>(yaraJson);
             if (matches != null && matches.Count > 0)
             {
                 var ruleNames = string.Join(", ", matches.Select(m =>
@@ -177,7 +173,7 @@ public class SupplierFileValidator : Interfaces.IValidator
                                  "4. Contact the supplier to investigate how a known malware file ended up in their delivery. " +
                                  "5. Check if any earlier version of this file was already transferred to the OT network.";
             result.IsValid = false;
-            result.Details.Add($"❌ IOC match: hash {fileHash[..16]}... is a known threat");
+            result.Details.Add($"❌ IOC match: hash {fileHash.Substring(0, Math.Min(16, fileHash.Length))}... is a known threat");
             return result;
         }
         result.Details.Add("✓ IOC hash check passed");
@@ -223,7 +219,12 @@ public class SupplierFileValidator : Interfaces.IValidator
 
         try
         {
+#if NET48
+            using var reader = File.OpenText(sbomPath);
+            var sbomJson = await reader.ReadToEndAsync();
+#else
             var sbomJson = await File.ReadAllTextAsync(sbomPath);
+#endif
 
             bool hasVulnerableComponent = false;
 

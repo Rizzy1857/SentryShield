@@ -29,7 +29,7 @@ public class SupplierFileValidatorTests
 {
     private string _testDir = string.Empty;
     private TestIOCDbV _iocDb = null!;
-    private TestProcessRunnerV _processRunner = null!;
+    private TestProcessRunner _processRunner = null!;
     private TestVulnMatcher _vulnMatcher = null!;
     private Dictionary<string, SupplierManifest> _manifests = null!;
     private SupplierFileValidator _validator = null!;
@@ -44,7 +44,7 @@ public class SupplierFileValidatorTests
         Directory.CreateDirectory(_testDir);
 
         _iocDb = new TestIOCDbV();
-        _processRunner = new TestProcessRunnerV();
+        _processRunner = new TestProcessRunner();
         _vulnMatcher = new TestVulnMatcher();
 
         _manifests = new Dictionary<string, SupplierManifest>(StringComparer.OrdinalIgnoreCase)
@@ -63,6 +63,7 @@ public class SupplierFileValidatorTests
     [TearDown]
     public void Teardown()
     {
+        _iocDb?.Dispose();
         if (Directory.Exists(_testDir))
             Directory.Delete(_testDir, recursive: true);
     }
@@ -382,19 +383,6 @@ internal class TestIOCDbV : Database.IOCDb
         => Task.FromResult(_bad.Contains(sha256));
 }
 
-/// <summary>Fake ProcessRunner that returns configurable YARA JSON without spawning Python.</summary>
-internal class TestProcessRunnerV : IPC.ProcessRunner
-{
-    private string _yaraResult = "[]";
-
-    public TestProcessRunnerV()
-        : base(NullLogger.Instance, "python", ".", 30) { }
-
-    public void SetYaraResult(string json) => _yaraResult = json;
-
-    public override Task<string> RunYaraScanAsync(string path) => Task.FromResult(_yaraResult);
-    public override Task<string> RunYaraScanFileAsync(string path) => Task.FromResult(_yaraResult);
-}
 
 /// <summary>
 /// Fake VulnerabilityMatcher — returns configurable matches without needing a DB.

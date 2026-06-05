@@ -1,4 +1,4 @@
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using SentryShield.Core.Models;
 
@@ -12,7 +12,7 @@ public class ScanHistoryDb : IDisposable
 {
     private readonly string _dbPath;
     private readonly ILogger _logger;
-    private SQLiteConnection? _conn;
+    private SqliteConnection? _conn;
 
     public ScanHistoryDb(ILogger logger, string dbPath)
     {
@@ -20,13 +20,13 @@ public class ScanHistoryDb : IDisposable
         _dbPath = dbPath;
     }
 
-    private SQLiteConnection Connection
+    private SqliteConnection Connection
     {
         get
         {
             if (_conn == null || _conn.State != System.Data.ConnectionState.Open)
             {
-                _conn = new SQLiteConnection($"Data Source={_dbPath};Version=3;");
+                _conn = new SqliteConnection($"Data Source={_dbPath};");
                 _conn.Open();
             }
             return _conn;
@@ -50,7 +50,7 @@ public class ScanHistoryDb : IDisposable
                     (@id, @machine, @type, @severity, @title, @desc,
                      @component, @remediation, @timestamp, @ack, @notes)";
 
-            using var cmd = new SQLiteCommand(sql, Connection, txn);
+            using var cmd = new SqliteCommand(sql, Connection, txn);
 
             foreach (var f in findings)
             {
@@ -101,7 +101,7 @@ public class ScanHistoryDb : IDisposable
                     detection_timestamp DESC
                 LIMIT @limit";
 
-            using var cmd = new SQLiteCommand(sql, Connection);
+            using var cmd = new SqliteCommand(sql, Connection);
             cmd.Parameters.AddWithValue("@limit", limit);
 
             using var reader = cmd.ExecuteReader();
@@ -147,7 +147,7 @@ public class ScanHistoryDb : IDisposable
                 FROM findings
                 WHERE acknowledged = 0";
 
-            using var cmd = new SQLiteCommand(sql, Connection);
+            using var cmd = new SqliteCommand(sql, Connection);
             using var reader = cmd.ExecuteReader();
 
             if (reader.Read())
@@ -174,7 +174,7 @@ public class ScanHistoryDb : IDisposable
             SET acknowledged = 1, notes = @notes
             WHERE id = @id";
 
-        using var cmd = new SQLiteCommand(sql, Connection);
+        using var cmd = new SqliteCommand(sql, Connection);
         cmd.Parameters.AddWithValue("@id", findingId);
         cmd.Parameters.AddWithValue("@notes", notes ?? (object)DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
@@ -193,7 +193,7 @@ public class ScanHistoryDb : IDisposable
                  high_count, medium_count, scan_duration_seconds)
             VALUES (@type, CURRENT_TIMESTAMP, @total, @critical, @high, @medium, @duration)";
 
-        using var cmd = new SQLiteCommand(sql, Connection);
+        using var cmd = new SqliteCommand(sql, Connection);
         cmd.Parameters.AddWithValue("@type", scanType);
         cmd.Parameters.AddWithValue("@total", findingsCount);
         cmd.Parameters.AddWithValue("@critical", criticalCount);
@@ -208,7 +208,7 @@ public class ScanHistoryDb : IDisposable
         const string sql = @"
             SELECT MAX(scan_timestamp) FROM scan_results WHERE scan_type = @type";
 
-        using var cmd = new SQLiteCommand(sql, Connection);
+        using var cmd = new SqliteCommand(sql, Connection);
         cmd.Parameters.AddWithValue("@type", scanType);
         var result = cmd.ExecuteScalar()?.ToString();
 
@@ -229,7 +229,7 @@ public class ScanHistoryDb : IDisposable
                 (@filename, @supplier, @hash, @size, @received,
                  @status, @reason, @validated, @transferred)";
 
-        using var cmd = new SQLiteCommand(sql, Connection);
+        using var cmd = new SqliteCommand(sql, Connection);
         cmd.Parameters.AddWithValue("@filename", file.Filename);
         cmd.Parameters.AddWithValue("@supplier", file.SupplierName);
         cmd.Parameters.AddWithValue("@hash", file.FileHash);
@@ -259,7 +259,7 @@ public class ScanHistoryDb : IDisposable
                 ORDER BY received_timestamp DESC
                 LIMIT @limit";
 
-            using var cmd = new SQLiteCommand(sql, Connection);
+            using var cmd = new SqliteCommand(sql, Connection);
             cmd.Parameters.AddWithValue("@limit", limit);
 
             using var reader = cmd.ExecuteReader();

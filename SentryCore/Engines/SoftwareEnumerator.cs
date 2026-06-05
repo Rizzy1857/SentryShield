@@ -104,7 +104,7 @@ public class SoftwareEnumerator
 
                             result.Add(new InstalledSoftware
                             {
-                                Name = name,
+                                Name = name!,
                                 Version = subKey.GetValue("DisplayVersion")?.ToString() ?? "Unknown",
                                 Publisher = subKey.GetValue("Publisher")?.ToString() ?? "Unknown",
                                 InstallPath = subKey.GetValue("InstallLocation")?.ToString() ?? "Unknown",
@@ -150,7 +150,7 @@ public class SoftwareEnumerator
 
                 result.Add(new InstalledSoftware
                 {
-                    Name = name,
+                    Name = name!,
                     Version = obj["Version"]?.ToString() ?? "Unknown",
                     InstallPath = obj["InstallLocation"]?.ToString() ?? "Unknown",
                     Publisher = obj["Vendor"]?.ToString() ?? "Unknown"

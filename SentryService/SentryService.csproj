@@ -1,17 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>SentryShield.Service</RootNamespace>
     <AssemblyName>SentryService</AssemblyName>
     <OutputType>Exe</OutputType>
     <!-- Windows Service deployment -->
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
   </PropertyGroup>
-
+  <!-- Explicit Exclude for <Content> error -->
+  <ItemGroup>
+      <Content Remove="appsettings.json" />
+      <Content Include="appsettings.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+  </ItemGroup>
   <ItemGroup>
     <!-- Core project reference -->
     <ProjectReference Include="..\SentryCore\SentryCore.csproj" />
@@ -27,13 +32,6 @@
     <PackageReference Include="System.Management" Version="8.0.0" />
 
     <!-- SQLite -->
-    <PackageReference Include="System.Data.SQLite" Version="1.0.118" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="appsettings.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
 </Project>

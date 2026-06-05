@@ -1,7 +1,6 @@
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace SentryShield.Database;
 
@@ -15,13 +14,6 @@ public class DatabaseInitializer
     private readonly ILogger<DatabaseInitializer> _logger;
     private readonly string _dbPath;
 
-    public DatabaseInitializer(ILogger<DatabaseInitializer> logger, IOptions<Service.DatabaseOptions> options)
-    {
-        _logger = logger;
-        _dbPath = options.Value.Path;
-    }
-
-    // Allow direct path injection (for tests)
     public DatabaseInitializer(ILogger<DatabaseInitializer> logger, string dbPath)
     {
         _logger = logger;
@@ -48,11 +40,11 @@ public class DatabaseInitializer
                 return;
             }
 
-            using var conn = new SQLiteConnection($"Data Source={_dbPath};Version=3;");
+            using var conn = new SqliteConnection($"Data Source={_dbPath}");
             await conn.OpenAsync();
 
             // Execute schema (idempotent — IF NOT EXISTS everywhere)
-            using var cmd = new SQLiteCommand(sql, conn);
+            using var cmd = new SqliteCommand(sql, conn);
             await cmd.ExecuteNonQueryAsync();
 
             _logger.LogInformation("[DB] Database initialized: {Path}", _dbPath);
