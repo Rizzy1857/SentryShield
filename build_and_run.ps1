@@ -40,12 +40,15 @@ if ($isLegacy) {
     Write-Host "Target Framework  : net48" -ForegroundColor Gray
     
     if (-not $RunOnly) {
+        Write-Host "`n--> Cleaning up old processes..." -ForegroundColor DarkGray
+        Stop-Process -Name SentryLegacyService -ErrorAction SilentlyContinue -Force
+        
         Write-Host "`n--> Building SentryLegacyService..." -ForegroundColor Cyan
         # Only build the legacy project. This skips the modern projects and prevents NU1702 conflicts.
-        $process = Start-Process -FilePath "dotnet" -ArgumentList "build", "SentryLegacyService/SentryLegacyService.csproj", "--configuration", "Debug", "--framework", "net48" -Wait -PassThru -NoNewWindow
-        if ($process.ExitCode -ne 0) {
+        dotnet build SentryLegacyService/SentryLegacyService.csproj --configuration Debug --framework net48
+        if ($LASTEXITCODE -ne 0) {
             Write-Host "Build failed." -ForegroundColor Red
-            exit $process.ExitCode
+            exit $LASTEXITCODE
         }
     }
 
@@ -59,18 +62,22 @@ if ($isLegacy) {
     Write-Host "Target Framework  : net10.0-windows" -ForegroundColor Gray
     
     if (-not $RunOnly) {
+        Write-Host "`n--> Cleaning up old processes..." -ForegroundColor DarkGray
+        Stop-Process -Name SentryService -ErrorAction SilentlyContinue -Force
+        Stop-Process -Name SentryUI -ErrorAction SilentlyContinue -Force
+        
         Write-Host "`n--> Building SentryService & SentryUI..." -ForegroundColor Cyan
         
-        $p1 = Start-Process -FilePath "dotnet" -ArgumentList "build", "SentryService/SentryService.csproj", "--configuration", "Debug", "--framework", "net10.0-windows" -Wait -PassThru -NoNewWindow
-        if ($p1.ExitCode -ne 0) {
+        dotnet build SentryService/SentryService.csproj --configuration Debug --framework net10.0-windows
+        if ($LASTEXITCODE -ne 0) {
             Write-Host "Build failed for SentryService." -ForegroundColor Red
-            exit $p1.ExitCode
+            exit $LASTEXITCODE
         }
 
-        $p2 = Start-Process -FilePath "dotnet" -ArgumentList "build", "SentryUI/SentryUI.csproj", "--configuration", "Debug", "--framework", "net10.0-windows" -Wait -PassThru -NoNewWindow
-        if ($p2.ExitCode -ne 0) {
+        dotnet build SentryUI/SentryUI.csproj --configuration Debug --framework net10.0-windows
+        if ($LASTEXITCODE -ne 0) {
             Write-Host "Build failed for SentryUI." -ForegroundColor Red
-            exit $p2.ExitCode
+            exit $LASTEXITCODE
         }
     }
 

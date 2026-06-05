@@ -137,6 +137,23 @@
         </Setter>
     </Style>
 
+    <!-- COMBOBOX ITEM -->
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Background" Value="{StaticResource BrushBgCard}"/>
+        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource BrushBgHover}"/>
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="#1C2A3A"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- SECONDARY / OUTLINE BUTTON -->
     <Style x:Key="SecondaryButton" TargetType="Button">
         <Setter Property="Background" Value="Transparent"/>
@@ -161,6 +178,10 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="Background" Value="#1C2A3A"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="Background" Value="#101D2C"/>
+                            <Setter Property="BorderBrush" Value="#3888D4"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

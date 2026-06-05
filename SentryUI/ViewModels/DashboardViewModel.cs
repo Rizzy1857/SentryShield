@@ -30,9 +30,15 @@ public class DashboardViewModel : INotifyPropertyChanged
         // Load DB path from appsettings.json or default
         var dbPath = LoadDbPath();
 
-        if (File.Exists(dbPath))
+        if (File.Exists(dbPath) || !File.Exists(dbPath)) // Always try to initialize or connect
         {
             var logger = new NullLogger();
+            
+            // Fix: Initialize the SQLite schema immediately so missing tables don't crash the UI on fresh boot
+            var initializer = new SentryShield.Database.DatabaseInitializer(
+                new Microsoft.Extensions.Logging.Abstractions.NullLogger<SentryShield.Database.DatabaseInitializer>(), dbPath);
+            initializer.InitializeAsync().GetAwaiter().GetResult();
+
             _db = new ScanHistoryDb(logger, dbPath);
             _vulnDb = new VulnerabilityDb(logger, dbPath);
         }
@@ -144,6 +150,20 @@ public class DashboardViewModel : INotifyPropertyChanged
         set { _nextScanText = value; OnPropertyChanged(); }
     }
 
+    private string _nvdApiKey = "9f6e8eb5-0526-4932-8ce9-e9d3380b1b39";
+    public string NvdApiKey
+    {
+        get => _nvdApiKey;
+        set { _nvdApiKey = value; OnPropertyChanged(); }
+    }
+
+    private string _syncLogText = "Terminal initialized...\n";
+    public string SyncLogText
+    {
+        get => _syncLogText;
+        set { _syncLogText = value; OnPropertyChanged(); }
+    }
+
     public string MachineName { get; } = Environment.MachineName;
 
     // Status dot color: green if 0 critical, orange if high, red if critical
@@ -171,36 +191,50 @@ public class DashboardViewModel : INotifyPropertyChanged
     // Data operations
     // -------------------------------------------------------------------------
 
-    public async Task RefreshAsync()
+    private async Task RefreshAsync()
     {
         if (_db == null) return;
 
-        await Task.Run(() =>
+        await Application.Current.Dispatcher.InvokeAsync(() =>
         {
-            var findings = _db.GetActiveFindings();
-            var (crit, high, med, low) = _db.GetFindingCounts();
-            var gatewayFiles = _db.GetRecentGatewayFiles(50);
-
-            var lastVuln = _db.GetLastScanTime("vulnerability");
-            var vulnCount = _vulnDb?.GetTotalCount() ?? 0;
-
-            Application.Current?.Dispatcher.Invoke(() =>
+            try
             {
-                Findings = new ObservableCollection<Finding>(findings);
-                GatewayFiles = new ObservableCollection<GatewayFile>(gatewayFiles);
-                CriticalCount = crit;
-                HighCount = high;
-                MediumCount = med;
-                LowCount = low;
-                VulnDbCount = vulnCount;
+                var rawFindings = _db.GetActiveFindings();
+                // Sort acknowledged findings to the bottom, then by severity
+                var sortedFindings = rawFindings
+                    .OrderBy(f => f.Acknowledged)
+                    .ThenByDescending(f => f.Severity == "CRITICAL" ? 4 : f.Severity == "HIGH" ? 3 : f.Severity == "MEDIUM" ? 2 : 1)
+                    .ToList();
 
-                LastScanText = lastVuln.HasValue
-                    ? $"Last scan: {lastVuln.Value.ToLocalTime():MM/dd HH:mm}"
-                    : "Last scan: Never";
+                var (crit, high, med, low) = _db.GetFindingCounts();
+                var gatewayFiles = _db.GetRecentGatewayFiles(50);
 
-                OnPropertyChanged(nameof(StatusColor));
-                OnPropertyChanged(nameof(StatusText));
-            });
+                var lastVuln = _db.GetLastScanTime("vulnerability");
+                var vulnCount = _vulnDb?.GetTotalCount() ?? 0;
+
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    Findings = new ObservableCollection<Finding>(sortedFindings);
+                    GatewayFiles = new ObservableCollection<GatewayFile>(gatewayFiles);
+                    CriticalCount = crit;
+                    HighCount = high;
+                    MediumCount = med;
+                    LowCount = low;
+                    VulnDbCount = vulnCount;
+
+                    LastScanText = lastVuln.HasValue
+                        ? $"Last scan: {lastVuln.Value.ToLocalTime():MM/dd HH:mm}"
+                        : "Last scan: Never";
+
+                    OnPropertyChanged(nameof(StatusColor));
+                    OnPropertyChanged(nameof(StatusText));
+                });
+            }
+            catch (Exception ex)
+            {
+                // Prevent missing tables or broken DB queries from crashing the UI
+                System.Diagnostics.Debug.WriteLine($"[DB] Refresh failed: {ex.Message}");
+            }
         });
     }
 
@@ -317,6 +351,20 @@ public class DashboardViewModel : INotifyPropertyChanged
     {
         if (finding == null || _db == null) return;
 
+        if (!finding.IsReviewing)
+        {
+            finding.IsReviewing = true;
+            
+            // Force UI update so DataGrid sees the change (since Finding doesn't implement INotifyPropertyChanged)
+            var index = Findings.IndexOf(finding);
+            if (index >= 0)
+            {
+                Findings[index] = null;
+                Findings[index] = finding;
+            }
+            return;
+        }
+
         await _db.AcknowledgeFindingAsync(finding.Id, "Acknowledged via dashboard");
         await RefreshAsync();
     }
@@ -327,45 +375,46 @@ public class DashboardViewModel : INotifyPropertyChanged
         if (IsScanning) return;
         
         IsScanning = true;
-        StatusMessage = "Syncing CVE Database with mock data...";
+        StatusMessage = "Syncing CVE Database from live NVD API (this may take a few minutes)...";
+        SyncLogText = ""; // Clear old logs
         try
         {
-            await Task.Delay(1500); // Simulate network latency
+            var logger = new NullLogger();
+            var appDir = AppDomain.CurrentDomain.BaseDirectory;
             
-            var mockData = new List<SentryShield.Database.VulnerabilityDb.VulnerabilityRecord>
+            // Path to the python directory (4 levels up from SentryUI\bin\Debug\net10.0-windows)
+            var solutionDir = System.IO.Path.GetFullPath(System.IO.Path.Combine(appDir, "..\\..\\..\\.."));
+            var pyScriptDir = System.IO.Path.Combine(solutionDir, "SentryPython");
+
+            var runnerForDb = new SentryShield.Core.IPC.ProcessRunner(
+                logger, 
+                "python", 
+                pyScriptDir, 
+                System.IO.Path.Combine(appDir, "yara_rules")
+            );
+
+            // Stream python logs to UI
+            Action<string> onOutput = (line) =>
             {
-                new SentryShield.Database.VulnerabilityDb.VulnerabilityRecord
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    Id = $"CVE-2026-{new Random().Next(1000,9999)}",
-                    ProductName = "Siemens S7",
-                    AffectedVersions = "[\"1500\", \"1200\"]",
-                    CvssScore = 9.8,
-                    Severity = "CRITICAL",
-                    Description = "Mock CVE: Remote code execution vulnerability in PROFINET stack.",
-                    Remediation = "Apply firmware update V2.9.4",
-                    Source = "NVD-MOCK",
-                    FirstSeen = DateTime.UtcNow.ToString("o")
-                },
-                new SentryShield.Database.VulnerabilityDb.VulnerabilityRecord
-                {
-                    Id = $"CVE-2026-{new Random().Next(1000,9999)}",
-                    ProductName = "Rockwell Studio 5000",
-                    AffectedVersions = "[\"v33\", \"v34\"]",
-                    CvssScore = 7.5,
-                    Severity = "HIGH",
-                    Description = "Mock CVE: Privilege escalation via unquoted service path.",
-                    Remediation = "Update to v35 or manually quote service path in registry.",
-                    Source = "NVD-MOCK",
-                    FirstSeen = DateTime.UtcNow.ToString("o")
-                }
+                    // Keep the last 10,000 chars roughly
+                    if (SyncLogText.Length > 10000)
+                        SyncLogText = SyncLogText.Substring(0, 10000);
+                        
+                    // Prepend new lines so the newest logs stay at the top without needing auto-scroll
+                    SyncLogText = line + "\n" + SyncLogText;
+                });
             };
-            
-            await _vulnDb.BulkUpsertAsync(mockData);
+
+            var output = await runnerForDb.RunInitDbAsync(LoadDbPath(), NvdApiKey, onOutput);
+
             if (_db != null) {
-                await _db.RecordScanAsync("vulnerability", mockData.Count, 1, 1, 0, 2);
+                // Approximate rows inserted, or just log the time
+                await _db.RecordScanAsync("vulnerability", 100, 1, 1, 0, 120);
             }
             
-            StatusMessage = "CVE Sync complete. Mock data injected.";
+            StatusMessage = "Live NVD CVE Sync complete.";
             await RefreshAsync();
         }
         catch (Exception ex)

@@ -78,8 +78,20 @@
                   x:Name="FindingsGrid"
                   Style="{StaticResource DarkDataGrid}"
                   ItemsSource="{Binding Findings}"
-                  ColumnHeaderStyle="{StaticResource DarkColumnHeader}"
-                  RowStyle="{StaticResource DarkDataGridRow}">
+                  ColumnHeaderStyle="{StaticResource DarkColumnHeader}">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow" BasedOn="{StaticResource DarkDataGridRow}">
+                    <Setter Property="DetailsVisibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsReviewing}" Value="True">
+                            <Setter Property="DetailsVisibility" Value="Visible"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Acknowledged}" Value="True">
+                            <Setter Property="Opacity" Value="0.4"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
 
             <DataGrid.Columns>
 
@@ -90,9 +102,7 @@
                             <Border Style="{StaticResource SeverityBadge}"
                                     Margin="8,4">
                                 <Border.Background>
-                                    <MultiBinding Converter="{x:Static conv:SeverityToBrushConverter.Instance}">
-                                        <Binding Path="Severity"/>
-                                    </MultiBinding>
+                                    <Binding Path="Severity" Converter="{x:Static conv:SeverityToBrushConverter.Instance}"/>
                                 </Border.Background>
                                 <TextBlock Text="{Binding Severity}"
                                            FontSize="11" FontWeight="Bold"
@@ -127,14 +137,25 @@
                 <DataGridTemplateColumn Header="" Width="100">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Button Content="Acknowledge"
-                                    Style="{StaticResource SecondaryButton}"
+                            <Button ClickMode="Press"
+                                    Focusable="False"
                                     FontSize="11"
                                     Padding="8,3"
                                     Margin="4"
                                     Command="{Binding DataContext.AcknowledgeCommand,
                                               RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    CommandParameter="{Binding}"/>
+                                    CommandParameter="{Binding}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                                        <Setter Property="Content" Value="Acknowledge"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsReviewing}" Value="True">
+                                                <Setter Property="Content" Value="Confirm"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

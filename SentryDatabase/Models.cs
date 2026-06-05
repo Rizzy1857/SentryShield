@@ -23,6 +23,9 @@ public class Finding
     public DateTime DetectionTimestamp { get; set; } = DateTime.UtcNow;
     public bool Acknowledged { get; set; } = false;
     public string? Notes { get; set; }
+    
+    // Transient property for UI state
+    public bool IsReviewing { get; set; } = false;
 }
 
 /// <summary>Result of a vulnerability database lookup.</summary>

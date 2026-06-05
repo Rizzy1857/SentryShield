@@ -59,7 +59,7 @@ public class DatabaseInitializer
     private static string LoadInitSql()
     {
         var assembly = Assembly.GetExecutingAssembly();
-        var resourceName = "SentryDatabase.Schema.init.sql";
+        var resourceName = "SentryShield.Database.Schema.init.sql";
 
         using var stream = assembly.GetManifestResourceStream(resourceName);
         if (stream == null) return string.Empty;

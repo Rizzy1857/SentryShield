@@ -67,6 +67,21 @@ public class ProcessRunner
         return await RunPythonAsync(args);
     }
 
+    /// <summary>
+    /// Triggers the init_db.py script to pull live NVD data. Returns JSON or text log.
+    /// </summary>
+    public async Task<string> RunInitDbAsync(string dbPath, string nvdKey, Action<string>? onOutputData = null)
+    {
+        var script = Path.Combine(_pythonScriptsPath, "init_db.py");
+        // Use -u to force unbuffered stdout/stderr so the WPF UI receives logs in real-time
+        var args = $"-u \"{script}\" --db \"{dbPath}\" --days-back 30";
+        if (!string.IsNullOrWhiteSpace(nvdKey))
+        {
+            args += $" --nvd-key \"{nvdKey}\"";
+        }
+        return await RunPythonAsync(args, 300_000, onOutputData); // Allow 5 minutes for massive NVD sync
+    }
+
     // -------------------------------------------------------------------------
     // Core subprocess runner
     // -------------------------------------------------------------------------
@@ -75,7 +90,7 @@ public class ProcessRunner
     /// Spawns a Python process, waits for completion (max 120s), returns stdout.
     /// Logs stderr as warnings.
     /// </summary>
-    private async Task<string> RunPythonAsync(string arguments, int timeoutMs = 120_000)
+    private async Task<string> RunPythonAsync(string arguments, int timeoutMs = 120_000, Action<string>? onOutputData = null)
     {
         var psi = new ProcessStartInfo
         {
@@ -95,8 +110,18 @@ public class ProcessRunner
         var stdoutBuilder = new StringBuilder();
         var stderrBuilder = new StringBuilder();
 
-        process.OutputDataReceived += (_, e) => { if (e.Data != null) stdoutBuilder.AppendLine(e.Data); };
-        process.ErrorDataReceived  += (_, e) => { if (e.Data != null) stderrBuilder.AppendLine(e.Data); };
+        process.OutputDataReceived += (_, e) => { 
+            if (e.Data != null) {
+                stdoutBuilder.AppendLine(e.Data);
+                onOutputData?.Invoke(e.Data);
+            }
+        };
+        process.ErrorDataReceived  += (_, e) => { 
+            if (e.Data != null) {
+                stderrBuilder.AppendLine(e.Data); 
+                onOutputData?.Invoke(e.Data);
+            }
+        };
 
         process.Start();
         process.BeginOutputReadLine();

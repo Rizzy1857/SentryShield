@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:SentryShield.UI.ViewModels"
-        Title="SentryShield v1.0 — Manufacturing Security Console"
-        Height="800" Width="1280"
+        Title="SentryShield v1.2-stable — Manufacturing Security Console"
+        Height="700" Width="1100"
         MinHeight="600" MinWidth="1000"
         Style="{StaticResource DarkWindow}"
         WindowStartupLocation="CenterScreen">
@@ -39,11 +39,12 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="🛡" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center"/>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="SENTRYSHIELD"
-                                   FontSize="15" FontWeight="Bold"
-                                   Foreground="{StaticResource BrushAccentBlue}"/>
-                        <TextBlock Text="Manufacturing Security v1.0"
-                                   FontSize="10" Foreground="{StaticResource BrushTextMuted}"/>
+                        <TextBlock Text="SENTRYSHIELD" 
+                                   Foreground="{StaticResource BrushTextPrimary}" 
+                                   FontWeight="SemiBold" FontSize="18"/>
+                        <TextBlock Text="Manufacturing Security v1.2-stable" 
+                                   Foreground="{StaticResource BrushTextSecondary}" 
+                                   FontSize="11"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -168,12 +169,33 @@
                     <Setter Property="FontSize" Value="13"/>
                     <Setter Property="Padding" Value="16,8"/>
                     <Setter Property="BorderThickness" Value="0"/>
-                    <Style.Triggers>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
-                            <Setter Property="FontWeight" Value="SemiBold"/>
-                        </Trigger>
-                    </Style.Triggers>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabItem">
+                                <Border Name="Border"
+                                        Background="Transparent"
+                                        Padding="{TemplateBinding Padding}"
+                                        CornerRadius="6"
+                                        Margin="0,0,4,0">
+                                    <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Border" Property="Background" Value="#1C2A3A"/>
+                                        <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Trigger>
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="IsMouseOver" Value="True"/>
+                                            <Condition Property="IsSelected" Value="False"/>
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="Border" Property="Background" Value="#161B22"/>
+                                    </MultiTrigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
                 </Style>
             </TabControl.Resources>
 
