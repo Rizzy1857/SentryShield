@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SentryDatabase\SentryDatabase.csproj" />
+    <ProjectReference Include="..\SentryPlugin.Abstractions\SentryPlugin.Abstractions.csproj" />
 
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />

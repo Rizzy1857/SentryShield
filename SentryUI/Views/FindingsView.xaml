@@ -87,7 +87,9 @@
                             <Setter Property="DetailsVisibility" Value="Visible"/>
                         </DataTrigger>
                         <DataTrigger Binding="{Binding Acknowledged}" Value="True">
-                            <Setter Property="Opacity" Value="0.4"/>
+                            <Setter Property="Background" Value="Black"/>
+                            <Setter Property="Foreground" Value="DimGray"/>
+                            <Setter Property="Opacity" Value="0.6"/>
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>

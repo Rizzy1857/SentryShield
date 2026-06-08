@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using SentryShield.Core.Engines;
 using SentryShield.Core.Models;
+using SentryShield.Plugin.Abstractions;
+using SentryShield.Core;
 
 namespace SentryShield.Tests;
 
@@ -30,7 +32,8 @@ public class SupplierFileValidatorTests
     private string _testDir = string.Empty;
     private TestIOCDbV _iocDb = null!;
     private TestProcessRunner _processRunner = null!;
-    private TestVulnMatcher _vulnMatcher = null!;
+    private PluginLoader _pluginLoader = null!;
+    private TestVulnPlugin _vulnPlugin = null!;
     private Dictionary<string, SupplierManifest> _manifests = null!;
     private SupplierFileValidator _validator = null!;
 
@@ -45,7 +48,10 @@ public class SupplierFileValidatorTests
 
         _iocDb = new TestIOCDbV();
         _processRunner = new TestProcessRunner();
-        _vulnMatcher = new TestVulnMatcher();
+        
+        _pluginLoader = new PluginLoader(NullLogger.Instance, ":memory:");
+        _vulnPlugin = new TestVulnPlugin();
+        _pluginLoader.AddPlugin(_vulnPlugin);
 
         _manifests = new Dictionary<string, SupplierManifest>(StringComparer.OrdinalIgnoreCase)
         {
@@ -74,7 +80,7 @@ public class SupplierFileValidatorTests
             NullLogger.Instance,
             _processRunner,
             _iocDb,
-            _vulnMatcher,
+            _pluginLoader,
             _manifests
         );
     }
@@ -263,8 +269,8 @@ public class SupplierFileValidatorTests
         """;
         await File.WriteAllTextAsync(file + ".sbom.json", sbomContent);
 
-        // Make the vuln matcher flag this component
-        _vulnMatcher.AddVulnerableProduct("VulnerableLib", "1.0.0");
+        // Make the vuln plugin flag this component
+        _vulnPlugin.AddVulnerableProduct("VulnerableLib", "1.0.0");
 
         _processRunner.SetYaraResult("[]");
 
@@ -385,36 +391,41 @@ internal class TestIOCDbV : Database.IOCDb
 
 
 /// <summary>
-/// Fake VulnerabilityMatcher — returns configurable matches without needing a DB.
+/// Fake Vulnerability Plugin — returns configurable matches without needing a DB.
 /// </summary>
-internal class TestVulnMatcher : SentryShield.Core.Engines.VulnerabilityMatcher
+internal class TestVulnPlugin : IDetectionPlugin
 {
-    private readonly Dictionary<(string, string), List<VulnerabilityMatch>> _matches = new();
+    public string Name => "Vulnerability Scanner";
+    public string Version => "Test";
 
-    public TestVulnMatcher()
-        : base(new Database.VulnerabilityDb(NullLogger.Instance, ":memory:"), NullLogger.Instance) { }
+    private readonly Dictionary<(string, string), List<DetectionResult>> _matches = new();
+
+    public void Initialize(PluginContext context) { }
 
     public void AddVulnerableProduct(string product, string version)
     {
-        _matches[(product.ToLower(), version)] = new List<VulnerabilityMatch>
+        _matches[(product.ToLower(), version)] = new List<DetectionResult>
         {
-            new VulnerabilityMatch
+            new DetectionResult
             {
-                CVEId = "TEST-CVE-001",
-                ProductName = product,
-                InstalledVersion = version,
-                CvssScore = 9.8,
+                Title = "TEST-CVE-001 - " + product,
                 Severity = "CRITICAL",
                 Description = "Test vulnerability",
-                Remediation = "Update immediately"
+                Remediation = "Update immediately",
+                Target = "",
+                AdditionalData = new Dictionary<string, string> { { "CVE", "TEST-CVE-001" }, { "InstalledVersion", version } }
             }
         };
     }
 
-    public override List<VulnerabilityMatch> FindVulnerabilities(
-        string productName, string version, string installPath)
+    public Task<List<DetectionResult>> ExecuteAsync(Dictionary<string, object> parameters)
     {
-        var key = (productName.ToLower(), version);
-        return _matches.TryGetValue(key, out var list) ? list : new List<VulnerabilityMatch>();
+        if (parameters.TryGetValue("TargetSoftware", out var sw) && parameters.TryGetValue("TargetVersion", out var ver)
+            && sw is string p && ver is string v)
+        {
+            var key = (p.ToLower(), v);
+            return Task.FromResult(_matches.TryGetValue(key, out var list) ? list : new List<DetectionResult>());
+        }
+        return Task.FromResult(new List<DetectionResult>());
     }
 }

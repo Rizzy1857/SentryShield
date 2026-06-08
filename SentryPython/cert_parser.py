@@ -50,7 +50,7 @@ ssl._create_default_https_context = ssl._create_unverified_context
 # ---------------------------------------------------------------------------
 
 NVD_BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
-NVD_API_KEY = os.environ.get("NVD_API_KEY", "")
+NVD_API_KEY = os.environ.get("NVD_API_KEY", "").strip()
 
 # Manufacturing-relevant product keywords for targeted NVD queries
 MANUFACTURING_KEYWORDS = [
@@ -79,31 +79,29 @@ class NVDFeedParser:
         results_per_page: int = 200
     ) -> list[dict]:
         """
-        Query NVD API for CVEs matching a keyword, published in the last N days.
-        Handles pagination (NVD returns max 2000 per page).
+        Query NVD API for CVEs matching a keyword.
+        Note: pubStartDate/pubEndDate filtering is currently returning 404
+        from the NVD 2.0 API regardless of format. Keyword-only search works.
         """
         cves = []
         start_index = 0
-        pub_start = (datetime.utcnow() - timedelta(days=days_back)).strftime("%Y-%m-%dT00:00:00.000")
-        pub_end = datetime.utcnow().strftime("%Y-%m-%dT23:59:59.999")
 
-        headers = {}
+        headers = {"User-Agent": "SentryShield/1.0 (security scanner; contact: admin@sentryshield.local)"}
         if NVD_API_KEY:
-            headers["apiKey"] = NVD_API_KEY
+            headers["api_key"] = NVD_API_KEY
 
         while True:
             params = f"?resultsPerPage={results_per_page}&startIndex={start_index}"
-            params += f"&pubStartDate={pub_start}&pubEndDate={pub_end}"
             if keyword:
                 encoded_keyword = urllib.parse.quote(keyword)
-                params += f"&keywordSearch={encoded_keyword}&keywordExactMatch"
+                params += f"&keywordSearch={encoded_keyword}"
 
             url = NVD_BASE_URL + params
-            log.info("Fetching NVD: %s", url[:100])
+            log.info("Fetching NVD: %s", url)
 
             try:
                 req = Request(url, headers=headers)
-                with urlopen(req, timeout=30) as resp:
+                with urlopen(req, context=ssl._create_unverified_context() if sys.platform == "darwin" else None, timeout=30) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
 
                 vulnerabilities = data.get("vulnerabilities", [])
@@ -118,9 +116,15 @@ class NVDFeedParser:
                     break
 
                 # NVD rate limit: wait 6s between requests (without API key)
-                time.sleep(6 if not NVD_API_KEY else 0.6)
+                time.sleep(6 if "api_key" not in headers else 0.6)
 
             except HTTPError as e:
+                # NVD WAF sometimes returns 404 or 403 for invalid/expired API keys
+                if e.code in (404, 403) and "api_key" in headers:
+                    log.warning("NVD rejected the API key (HTTP %d). It may be expired or invalid. Falling back to unauthenticated requests...", e.code)
+                    del headers["api_key"]
+                    continue # Retry the exact same URL without the API key
+                
                 log.error("NVD HTTP error: %d %s", e.code, e.reason)
                 break
             except URLError as e:

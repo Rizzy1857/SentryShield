@@ -13,9 +13,13 @@ namespace SentryShield.UI.Converters
         {
             if (value is string text && !string.IsNullOrWhiteSpace(text))
             {
-                // Matches a period followed by space(s), but ONLY if preceded by at least 2 letters.
-                // This ensures "1. " or "A. " doesn't trigger a newline, but "Do this. " does!
-                return Regex.Replace(text, @"(?<=[a-zA-Z]{2,})\.\s+", ".\n\n").Trim();
+                // Prevent WPF word-wrap from breaking the line immediately after a list number (e.g. "1. ")
+                // by replacing the space with a non-breaking space (\u00A0).
+                text = Regex.Replace(text, @"(\b\d+\.)\s+", "$1\u00A0");
+
+                // Force a new line after a full stop at the end of a sentence.
+                // Matches a period preceded by at least 2 letters, followed by a space.
+                return Regex.Replace(text, @"(?<=[a-zA-Z]{2,})\.\s+", ".\n").Trim();
             }
             return value ?? string.Empty;
         }

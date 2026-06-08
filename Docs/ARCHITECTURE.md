@@ -1,4 +1,4 @@
-# SentryShield v1.1 — Architecture
+# SentryShield v2.1-alpha — Architecture
 
 ## Overview
 
@@ -292,7 +292,7 @@ public interface IDetectionPlugin {
 | DriverAuditor | ✅ Active |
 | HardeningAudit | ✅ Active |
 | SupplierFileValidator | ✅ Active |
-| IDSPlugin | 🔲 Stub (`Plugins/IDSPlugin/IDSPlugin.stub.cs`) |
+| IDSPlugin | ✅ Active (`SentryPlugin.IDS` via SharpPcap) |
 | BehavioralPlugin | 🔲 v2.0 |
 | FirmwarePlugin | 🔲 v2.0 |
 

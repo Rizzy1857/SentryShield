@@ -19,11 +19,19 @@ public class ProcessRunner
 {
     private readonly ILogger<ProcessRunner> _logger;
     private readonly PathOptions _pathOptions;
+    private readonly string _scriptsDir;
+    private readonly string _rulesDir;
 
     public ProcessRunner(ILogger<ProcessRunner> logger, IOptions<PathOptions> pathOptions)
     {
         _logger = logger;
         _pathOptions = pathOptions.Value;
+
+        // Resolve relative paths against the exe directory so the service
+        // works correctly regardless of the working directory it was launched from.
+        _scriptsDir = ResolvePath(_pathOptions.PythonScriptsPath);
+        _rulesDir   = ResolvePath(_pathOptions.YaraRulesPath);
+        _logger.LogInformation("[IPC] Scripts dir: {Dir}", _scriptsDir);
     }
 
     // -------------------------------------------------------------------------
@@ -35,8 +43,8 @@ public class ProcessRunner
     /// </summary>
     public async Task<string> RunYaraScanAsync(string scanPath)
     {
-        var script = Path.Combine(_pathOptions.PythonScriptsPath, "yara_scanner.py");
-        var args = $"\"{script}\" --scan-dir \"{scanPath}\" --rules \"{_pathOptions.YaraRulesPath}\" --json";
+        var script = Path.Combine(_scriptsDir, "yara_scanner.py");
+        var args = $"\"{script}\" --scan-dir \"{scanPath}\" --rules \"{_rulesDir}\" --json";
         return await RunPythonAsync(args);
     }
 
@@ -45,8 +53,8 @@ public class ProcessRunner
     /// </summary>
     public async Task<string> RunYaraScanFileAsync(string filePath)
     {
-        var script = Path.Combine(_pathOptions.PythonScriptsPath, "yara_scanner.py");
-        var args = $"\"{script}\" --scan-file \"{filePath}\" --rules \"{_pathOptions.YaraRulesPath}\" --json";
+        var script = Path.Combine(_scriptsDir, "yara_scanner.py");
+        var args = $"\"{script}\" --scan-file \"{filePath}\" --rules \"{_rulesDir}\" --json";
         return await RunPythonAsync(args);
     }
 
@@ -55,9 +63,25 @@ public class ProcessRunner
     /// </summary>
     public async Task<string> RunDBSyncAsync(string dbPath)
     {
-        var script = Path.Combine(_pathOptions.PythonScriptsPath, "db_sync.py");
+        var script = Path.Combine(_scriptsDir, "db_sync.py");
         var args = $"\"{script}\" --db \"{dbPath}\" --json";
         return await RunPythonAsync(args);
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// If <paramref name="path"/> is relative, resolves it against the directory
+    /// containing the running executable (AppContext.BaseDirectory).
+    /// </summary>
+    private static string ResolvePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return AppContext.BaseDirectory;
+        return Path.IsPathRooted(path)
+            ? path
+            : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, path));
     }
 
     // -------------------------------------------------------------------------

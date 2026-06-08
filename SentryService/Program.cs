@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using SentryShield.Database;
 using SentryShield.Service.IPC;
 using SentryShield.Service.Watchers;
+using Microsoft.Extensions.Options;
+using System.IO;
 
 namespace SentryShield.Service;
 
@@ -39,6 +41,18 @@ internal class Program
 
                 // Python process runner (IPC bridge)
                 services.AddSingleton<ProcessRunner>();
+
+                // Background engines and plugin loader
+                services.AddSingleton<SentryShield.Core.PluginLoader>(sp => 
+                {
+                    var logger = sp.GetRequiredService<ILogger<SentryShield.Core.PluginLoader>>();
+                    var dbOptions = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+                    var loader = new SentryShield.Core.PluginLoader(logger, dbOptions.Path);
+                    var pluginsDir = Path.Combine(AppContext.BaseDirectory, "Plugins");
+                    if (Directory.Exists(pluginsDir)) loader.LoadPlugins(pluginsDir);
+                    return loader;
+                });
+                services.AddSingleton<SentryShield.Core.Engines.SupplierFileValidator>();
 
                 // Watchers
                 services.AddSingleton<GatewayFolderWatcher>();

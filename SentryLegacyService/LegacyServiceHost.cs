@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SentryShield.Core.Engines;
 using SentryShield.Core.Logging;
 using SentryShield.Database;
+using SentryShield.Core;
+using SentryShield.Plugin.Abstractions;
 
 namespace SentryShield.LegacyService;
 
@@ -32,7 +34,7 @@ internal sealed class LegacyServiceHost : ServiceBase
     private readonly ILogger         _logger;
     private readonly LegacyConfig    _config;
     private readonly ScanHistoryDb   _historyDb;
-    private readonly VulnerabilityDb _vulnDb;
+    private readonly PluginLoader    _pluginLoader;
     private readonly EventLogWriter  _eventLog;
     private readonly LegacyYaraGuard _yaraGuard;
 
@@ -45,7 +47,7 @@ internal sealed class LegacyServiceHost : ServiceBase
         ILogger logger,
         LegacyConfig config,
         ScanHistoryDb historyDb,
-        VulnerabilityDb vulnDb,
+        PluginLoader pluginLoader,
         EventLogWriter eventLog,
         LegacyYaraGuard yaraGuard)
     {
@@ -57,7 +59,7 @@ internal sealed class LegacyServiceHost : ServiceBase
         _logger    = logger;
         _config    = config;
         _historyDb = historyDb;
-        _vulnDb    = vulnDb;
+        _pluginLoader = pluginLoader;
         _eventLog  = eventLog;
         _yaraGuard = yaraGuard;
     }
@@ -99,7 +101,7 @@ internal sealed class LegacyServiceHost : ServiceBase
         if ((now - _lastVulnScan).TotalHours >= _config.Scanning.VulnerabilityScanIntervalHours)
         {
             _lastVulnScan = now;
-            ThreadPool.QueueUserWorkItem(_ => RunSafe("VulnerabilityScan", RunVulnerabilityScanAsync));
+            ThreadPool.QueueUserWorkItem(_ => RunSafe("DynamicPluginScan", RunPluginsAsync));
         }
 
         if ((now - _lastDriverAudit).TotalHours >= _config.Scanning.DriverAuditIntervalHours)
@@ -136,44 +138,52 @@ internal sealed class LegacyServiceHost : ServiceBase
     // Individual scan runners (mirror SentryWorker logic)
     // -------------------------------------------------------------------------
 
-    private async System.Threading.Tasks.Task RunVulnerabilityScanAsync()
+    private async System.Threading.Tasks.Task RunPluginsAsync()
     {
         var start = DateTime.UtcNow;
-        _logger.LogInformation("Starting vulnerability scan...");
+        _logger.LogInformation("Starting dynamic plugin execution...");
 
-        var enumerator = new SoftwareEnumerator(_logger);
-        var installed  = enumerator.EnumerateInstalledSoftware();
-
-        var matcher  = new VulnerabilityMatcher(_vulnDb, _logger);
         var findings = new List<Core.Models.Finding>();
 
-        foreach (var sw in installed)
+        foreach (var plugin in _pluginLoader.GetPlugins())
         {
-            var matches = matcher.FindVulnerabilities(sw.Name, sw.Version, sw.InstallPath);
-            foreach (var m in matches)
+            _logger.LogInformation("Executing plugin: {Name} v{Version}", plugin.Name, plugin.Version);
+            try
             {
-                findings.Add(new Core.Models.Finding
+                var results = await plugin.ExecuteAsync(new Dictionary<string, object>());
+                foreach (var r in results)
                 {
-                    FindingType        = "vulnerability",
-                    Severity           = m.Severity,
-                    Title              = $"{m.CVEId}: {m.ProductName}",
-                    Description        = m.Description,
-                    AffectedComponent  = m.InstallPath,
-                    Remediation        = m.Remediation,
-                    DetectionTimestamp = DateTime.UtcNow
-                });
+                    findings.Add(new Core.Models.Finding
+                    {
+                        FindingType        = plugin.Name.ToLower().Contains("usb") ? "usb" : "vulnerability",
+                        Severity           = r.Severity,
+                        Title              = r.Title,
+                        Description        = r.Description,
+                        AffectedComponent  = r.Target,
+                        Remediation        = r.Remediation,
+                        DetectionTimestamp = DateTime.UtcNow
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Plugin {Name} failed", plugin.Name);
             }
         }
 
-        await _historyDb.SaveFindingsAsync(findings);
+        if (findings.Count > 0)
+        {
+            await _historyDb.SaveFindingsAsync(findings);
+        }
+
         var elapsed = (int)(DateTime.UtcNow - start).TotalSeconds;
-        await _historyDb.RecordScanAsync("vulnerability", findings.Count,
+        await _historyDb.RecordScanAsync("dynamic_plugins", findings.Count,
             findings.Count(f => f.Severity == "CRITICAL"),
             findings.Count(f => f.Severity == "HIGH"),
             findings.Count(f => f.Severity == "MEDIUM"),
             elapsed);
 
-        _logger.LogInformation("Vulnerability scan complete: {Count} findings in {Elapsed}s",
+        _logger.LogInformation("Dynamic plugin execution complete: {Count} findings in {Elapsed}s",
             findings.Count, elapsed);
     }
 

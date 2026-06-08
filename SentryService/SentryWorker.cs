@@ -5,6 +5,8 @@ using SentryShield.Core.Engines;
 using SentryShield.Database;
 using SentryShield.Service.IPC;
 using SentryShield.Service.Watchers;
+using SentryShield.Core;
+using SentryShield.Plugin.Abstractions;
 
 namespace SentryShield.Service;
 
@@ -17,10 +19,9 @@ public class SentryWorker : BackgroundService
 {
     private readonly ILogger<SentryWorker> _logger;
     private readonly ScanningOptions _scanOptions;
-    private readonly ProcessRunner _processRunner;
     private readonly GatewayFolderWatcher _gatewayWatcher;
-    private readonly VulnerabilityDb _vulnDb;
     private readonly ScanHistoryDb _historyDb;
+    private readonly PluginLoader _pluginLoader;
 
     // Last run timestamps for interval management
     private DateTime _lastVulnScan = DateTime.MinValue;
@@ -30,17 +31,15 @@ public class SentryWorker : BackgroundService
     public SentryWorker(
         ILogger<SentryWorker> logger,
         IOptions<ScanningOptions> scanOptions,
-        ProcessRunner processRunner,
         GatewayFolderWatcher gatewayWatcher,
-        VulnerabilityDb vulnDb,
-        ScanHistoryDb historyDb)
+        ScanHistoryDb historyDb,
+        PluginLoader pluginLoader)
     {
         _logger = logger;
         _scanOptions = scanOptions.Value;
-        _processRunner = processRunner;
         _gatewayWatcher = gatewayWatcher;
-        _vulnDb = vulnDb;
         _historyDb = historyDb;
+        _pluginLoader = pluginLoader;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -57,11 +56,11 @@ public class SentryWorker : BackgroundService
             {
                 var now = DateTime.UtcNow;
 
-                // Vulnerability + software scan
+                // Dynamic Plugin execution (replaces VulnScan/SoftwareEnum)
                 if ((now - _lastVulnScan).TotalHours >= _scanOptions.VulnerabilityScanIntervalHours)
                 {
-                    _logger.LogInformation("Starting vulnerability scan...");
-                    await RunVulnerabilityScanAsync(stoppingToken);
+                    _logger.LogInformation("Starting dynamic plugin execution...");
+                    await RunPluginsAsync(stoppingToken);
                     _lastVulnScan = now;
                 }
 
@@ -98,59 +97,62 @@ public class SentryWorker : BackgroundService
     // Scan orchestrators
     // -------------------------------------------------------------------------
 
-    private async Task RunVulnerabilityScanAsync(CancellationToken ct)
+    private async Task RunPluginsAsync(CancellationToken ct)
     {
         var startTime = DateTime.UtcNow;
         int findingsCount = 0;
 
         try
         {
-            // 1. Enumerate installed software via WMI (C# side)
-            var enumerator = new SoftwareEnumerator(_logger);
-            var installedSoftware = enumerator.EnumerateInstalledSoftware();
-            _logger.LogInformation("Found {Count} installed software entries", installedSoftware.Count);
-
-            // 2. Match against vulnerability DB
-            var matcher = new VulnerabilityMatcher(_vulnDb, _logger);
             var findings = new List<SentryShield.Core.Models.Finding>();
 
-            foreach (var sw in installedSoftware)
+            foreach (var plugin in _pluginLoader.GetPlugins())
             {
-                var matches = matcher.FindVulnerabilities(sw.Name, sw.Version, sw.InstallPath);
-                foreach (var match in matches)
+                _logger.LogInformation("Executing plugin: {PluginName} v{Version}", plugin.Name, plugin.Version);
+                try
                 {
-                    findings.Add(new Core.Models.Finding
+                    var results = await plugin.ExecuteAsync(new Dictionary<string, object>());
+                    foreach (var result in results)
                     {
-                        Id = Guid.NewGuid().ToString(),
-                        MachineName = Environment.MachineName,
-                        FindingType = "vulnerability",
-                        Severity = match.Severity,
-                        Title = $"{match.CVEId}: {match.ProductName}",
-                        Description = match.Description,
-                        AffectedComponent = match.InstallPath,
-                        Remediation = match.Remediation,
-                        DetectionTimestamp = DateTime.UtcNow
-                    });
+                        findings.Add(new Core.Models.Finding
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            MachineName = Environment.MachineName,
+                            FindingType = plugin.Name.ToLower().Contains("usb") ? "usb" : "vulnerability",
+                            Severity = result.Severity,
+                            Title = result.Title,
+                            Description = result.Description,
+                            AffectedComponent = result.Target,
+                            Remediation = result.Remediation,
+                            DetectionTimestamp = DateTime.UtcNow
+                        });
+                    }
+                    findingsCount += results.Count;
                 }
-                findingsCount += matches.Count;
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Plugin {PluginName} failed during execution.", plugin.Name);
+                }
             }
 
-            // 3. Persist findings
-            await _historyDb.SaveFindingsAsync(findings);
+            if (findings.Count > 0)
+            {
+                await _historyDb.SaveFindingsAsync(findings);
+            }
 
             var elapsed = (int)(DateTime.UtcNow - startTime).TotalSeconds;
-            await _historyDb.RecordScanAsync("vulnerability", findings.Count,
+            await _historyDb.RecordScanAsync("dynamic_plugins", findings.Count,
                 findings.Count(f => f.Severity == "CRITICAL"),
                 findings.Count(f => f.Severity == "HIGH"),
                 findings.Count(f => f.Severity == "MEDIUM"),
                 elapsed);
 
-            _logger.LogInformation("Vulnerability scan complete: {Findings} findings in {Elapsed}s",
+            _logger.LogInformation("Dynamic plugin execution complete: {Findings} findings in {Elapsed}s",
                 findingsCount, elapsed);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Vulnerability scan failed");
+            _logger.LogError(ex, "Dynamic plugin execution failed");
         }
     }
 

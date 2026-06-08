@@ -14,6 +14,14 @@
   <ItemGroup>
     <ProjectReference Include="..\SentryCore\SentryCore.csproj" />
     <ProjectReference Include="..\SentryDatabase\SentryDatabase.csproj" />
+    
+    <!-- Build plugins before service (but do not statically link them) -->
+    <ProjectReference Include="..\SentryPlugin.Vulnerability\SentryPlugin.Vulnerability.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\SentryPlugin.USB\SentryPlugin.USB.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>
@@ -42,4 +50,24 @@
     </Content>
   </ItemGroup>
 
+  <Target Name="CopyPlugins" AfterTargets="Build">
+    <ItemGroup>
+      <PluginFiles Include="..\SentryPlugin.Vulnerability\bin\$(Configuration)\$(TargetFramework)\SentryPlugin.Vulnerability.dll" />
+      <PluginFiles Include="..\SentryPlugin.USB\bin\$(Configuration)\$(TargetFramework)\SentryPlugin.USB.dll" />
+    </ItemGroup>
+    <MakeDir Directories="$(OutDir)Plugins" />
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(OutDir)Plugins" />
+  </Target>
+
+  <!-- Copy Python scripts into build output so appsettings paths are relative -->
+  <Target Name="CopyPythonScripts" AfterTargets="Build">
+    <ItemGroup>
+      <PythonScripts Include="..\SentryPython\*.py" />
+      <YaraRules Include="..\rules\**\*" />
+    </ItemGroup>
+    <MakeDir Directories="$(OutDir)scripts" />
+    <MakeDir Directories="$(OutDir)rules" />
+    <Copy SourceFiles="@(PythonScripts)" DestinationFolder="$(OutDir)scripts" />
+    <Copy SourceFiles="@(YaraRules)" DestinationFolder="$(OutDir)rules" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

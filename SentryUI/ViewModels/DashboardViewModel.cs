@@ -270,30 +270,36 @@ public class DashboardViewModel : INotifyPropertyChanged
         {
             var logger = new SentryShield.UI.Utils.ObservableLogger(ScanLogs, App.Current.Dispatcher);
             var appDir = AppDomain.CurrentDomain.BaseDirectory;
-            var runner = new SentryShield.Core.IPC.ProcessRunner(
-                logger, 
-                "python", 
-                System.IO.Path.Combine(appDir, "python_scripts"), 
-                System.IO.Path.Combine(appDir, "yara_rules")
-            );
-            var iocDb = new SentryShield.Database.IOCDb(logger, LoadDbPath());
-            var monitor = new SentryShield.Core.Engines.USBMonitor(logger, runner, iocDb);
+            var pluginLoader = new SentryShield.Core.PluginLoader(logger, LoadDbPath());
+            var pluginsDir = System.IO.Path.Combine(appDir, "Plugins");
+            if (System.IO.Directory.Exists(pluginsDir)) pluginLoader.LoadPlugins(pluginsDir);
+
+            var usbPlugin = pluginLoader.GetPlugins().FirstOrDefault(p => p.Name.ToLower().Contains("usb"));
+            if (usbPlugin == null)
+            {
+                StatusMessage = "USB scanning plugin not found. Please ensure it is installed in the Plugins folder.";
+                return;
+            }
+
+            var parameters = new Dictionary<string, object> { { "DrivePath", folderPath } };
             
-            // Execute the actual core engine scan!
-            var threats = await monitor.ScanUSBDriveAsync(folderPath);
+            // Execute the dynamic plugin scan on a background thread so it doesn't freeze the UI
+            var threats = await Task.Run(async () => await usbPlugin.ExecuteAsync(parameters));
 
             if (_db != null && threats.Any())
             {
                 var findingsToSave = threats.Select(t => new Finding
                 {
+                    Id = Guid.NewGuid().ToString(),
+                    MachineName = MachineName,
                     FindingType = "usb_threat",
                     Severity = t.Severity,
-                    Title = $"USB Threat: {t.FileName}",
+                    Title = t.Title,
                     Description = t.Description,
-                    AffectedComponent = t.FilePath,
+                    AffectedComponent = t.Target,
                     Remediation = t.Remediation,
-                    DetectionTimestamp = t.DetectedAt,
-                    Notes = $"Type: {t.ThreatType} | Confidence: {t.Confidence}%"
+                    DetectionTimestamp = DateTime.UtcNow,
+                    Notes = t.AdditionalData != null && t.AdditionalData.ContainsKey("Notes") ? t.AdditionalData["Notes"] : ""
                 }).ToList();
 
                 await _db.SaveFindingsAsync(findingsToSave);

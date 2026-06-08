@@ -14,9 +14,28 @@
     <ProjectReference Include="..\SentryCore\SentryCore.csproj" />
     <ProjectReference Include="..\SentryDatabase\SentryDatabase.csproj" />
 
+    <!-- Build plugins before UI (but do not statically link them) -->
+    <ProjectReference Include="..\SentryPlugin.Vulnerability\SentryPlugin.Vulnerability.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\SentryPlugin.USB\SentryPlugin.USB.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+
+    <!-- Required to resolve plugin types correctly during Assembly.LoadFrom -->
+    <PackageReference Include="System.Management" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
   </ItemGroup>
+
+  <Target Name="CopyPlugins" AfterTargets="Build">
+    <ItemGroup>
+      <PluginFiles Include="..\SentryPlugin.Vulnerability\bin\$(Configuration)\net8.0-windows\SentryPlugin.Vulnerability.dll" />
+      <PluginFiles Include="..\SentryPlugin.USB\bin\$(Configuration)\net8.0-windows\SentryPlugin.USB.dll" />
+    </ItemGroup>
+    <MakeDir Directories="$(OutDir)Plugins" />
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(OutDir)Plugins" />
+  </Target>
 
 </Project>

@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$BuildOnly,
     [switch]$RunOnly,
     [switch]$ForceLegacy
@@ -7,10 +7,7 @@
 $ErrorActionPreference = "Stop"
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "         ▄▖    ▗     ▄▖▌ ▘  ▜  ▌" -ForegroundColor Cyan
-Write-Host "         ▚ █▌▛▌▜▘▛▘▌▌▚ ▛▌▌█▌▐ ▛▌" -ForegroundColor Cyan
-Write-Host "         ▄▌▙▖▌▌▐▖▌ ▙▌▄▌▌▌▌▙▖▐▖▙▌" -ForegroundColor Cyan
-Write-Host "                  ▄▌           " -ForegroundColor Cyan
+Write-Host "               SentryShield               " -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # Handle UNC paths in Parallels
@@ -43,10 +40,15 @@ if ($isLegacy) {
     Write-Host "Target Framework  : net48" -ForegroundColor Gray
     
     if (-not $RunOnly) {
-        Write-Host "`n--> Cleaning up old processes..." -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host "--> Cleaning up old processes..." -ForegroundColor DarkGray
         Stop-Process -Name SentryLegacyService -ErrorAction SilentlyContinue -Force
         
-        Write-Host "`n--> Building SentryLegacyService..." -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "--> Building SentryLegacyService..." -ForegroundColor Cyan
+        Write-Host "  Cleaning SentryLegacyService..." -ForegroundColor DarkGray
+        dotnet clean SentryLegacyService/SentryLegacyService.csproj --configuration Debug --framework net48 --nologo -v q
+        
         # Only build the legacy project. This skips the modern projects and prevents NU1702 conflicts.
         dotnet build SentryLegacyService/SentryLegacyService.csproj --configuration Debug --framework net48
         if ($LASTEXITCODE -ne 0) {
@@ -56,7 +58,8 @@ if ($isLegacy) {
     }
 
     if (-not $BuildOnly) {
-        Write-Host "`n--> Launching SentryLegacyService..." -ForegroundColor Green
+        Write-Host ""
+        Write-Host "--> Launching SentryLegacyService..." -ForegroundColor Green
         Start-Process "SentryLegacyService\bin\Debug\net48\SentryLegacyService.exe"
     }
 
@@ -65,17 +68,25 @@ if ($isLegacy) {
     Write-Host "Target Framework  : net10.0-windows" -ForegroundColor Gray
     
     if (-not $RunOnly) {
-        Write-Host "`n--> Cleaning up old processes..." -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host "--> Cleaning up old processes..." -ForegroundColor DarkGray
         Stop-Process -Name SentryService -ErrorAction SilentlyContinue -Force
         Stop-Process -Name SentryUI -ErrorAction SilentlyContinue -Force
         
-        Write-Host "`n--> Building SentryService & SentryUI..." -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "--> Building SentryService and SentryUI..." -ForegroundColor Cyan
+        
+        Write-Host "  Cleaning SentryService..." -ForegroundColor DarkGray
+        dotnet clean SentryService/SentryService.csproj --configuration Debug --framework net10.0-windows --nologo -v q
         
         dotnet build SentryService/SentryService.csproj --configuration Debug --framework net10.0-windows
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Build failed for SentryService." -ForegroundColor Red
             exit $LASTEXITCODE
         }
+
+        Write-Host "  Cleaning SentryUI..." -ForegroundColor DarkGray
+        dotnet clean SentryUI/SentryUI.csproj --configuration Debug --framework net10.0-windows --nologo -v q
 
         dotnet build SentryUI/SentryUI.csproj --configuration Debug --framework net10.0-windows
         if ($LASTEXITCODE -ne 0) {
@@ -85,7 +96,8 @@ if ($isLegacy) {
     }
 
     if (-not $BuildOnly) {
-        Write-Host "`n--> Launching Modern Services..." -ForegroundColor Green
+        Write-Host ""
+        Write-Host "--> Launching Modern Services..." -ForegroundColor Green
         # Start Service headless
         Start-Process "SentryService\bin\Debug\net10.0-windows\SentryService.exe" -WindowStyle Hidden
         # Start UI and capture output (blocks the console so we can see errors)
@@ -94,4 +106,5 @@ if ($isLegacy) {
     }
 }
 
-Write-Host "`nDone." -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Done." -ForegroundColor Cyan

@@ -18,9 +18,16 @@
       </Content>
   </ItemGroup>
   <ItemGroup>
-    <!-- Core project reference -->
     <ProjectReference Include="..\SentryCore\SentryCore.csproj" />
     <ProjectReference Include="..\SentryDatabase\SentryDatabase.csproj" />
+    
+    <!-- Build plugins before service (but do not statically link them) -->
+    <ProjectReference Include="..\SentryPlugin.Vulnerability\SentryPlugin.Vulnerability.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\SentryPlugin.USB\SentryPlugin.USB.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
 
     <!-- Windows Service hosting -->
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
@@ -34,4 +41,24 @@
     <!-- SQLite -->
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
   </ItemGroup>
+  <Target Name="CopyPlugins" AfterTargets="Build">
+    <ItemGroup>
+      <PluginFiles Include="..\SentryPlugin.Vulnerability\bin\$(Configuration)\net8.0-windows\SentryPlugin.Vulnerability.dll" />
+      <PluginFiles Include="..\SentryPlugin.USB\bin\$(Configuration)\net8.0-windows\SentryPlugin.USB.dll" />
+    </ItemGroup>
+    <MakeDir Directories="$(OutDir)Plugins" />
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(OutDir)Plugins" />
+  </Target>
+
+  <!-- Copy Python scripts into build output so appsettings paths are relative -->
+  <Target Name="CopyPythonScripts" AfterTargets="Build">
+    <ItemGroup>
+      <PythonScripts Include="..\SentryPython\*.py" />
+      <YaraRules Include="..\rules\**\*" />
+    </ItemGroup>
+    <MakeDir Directories="$(OutDir)scripts" />
+    <MakeDir Directories="$(OutDir)rules" />
+    <Copy SourceFiles="@(PythonScripts)" DestinationFolder="$(OutDir)scripts" />
+    <Copy SourceFiles="@(YaraRules)" DestinationFolder="$(OutDir)rules" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

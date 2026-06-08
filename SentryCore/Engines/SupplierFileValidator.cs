@@ -25,12 +25,12 @@ namespace SentryShield.Core.Engines;
 /// GPG note: Full GPG signature verification is deferred to v2.0.
 /// v1.0 uses SHA-256 + trusted manifest (supplier name + expected hash pairs).
 /// </summary>
-public class SupplierFileValidator : Interfaces.IValidator
+public class SupplierFileValidator
 {
     private readonly ILogger _logger;
     private readonly IPC.ProcessRunner _processRunner;
     private readonly Database.IOCDb _iocDb;
-    private readonly VulnerabilityMatcher _vulnMatcher;
+    private readonly PluginLoader _pluginLoader;
 
     // Trusted supplier manifest: supplierName → list of allowed file hash patterns
     // In production, load from signed manifest file; here populated from config.
@@ -42,13 +42,13 @@ public class SupplierFileValidator : Interfaces.IValidator
         ILogger logger,
         IPC.ProcessRunner processRunner,
         Database.IOCDb iocDb,
-        VulnerabilityMatcher vulnMatcher,
+        PluginLoader pluginLoader,
         Dictionary<string, SupplierManifest>? trustedManifests = null)
     {
         _logger = logger;
         _processRunner = processRunner;
         _iocDb = iocDb;
-        _vulnMatcher = vulnMatcher;
+        _pluginLoader = pluginLoader;
         _trustedManifests = trustedManifests ?? LoadDefaultManifests();
     }
 
@@ -247,11 +247,13 @@ public class SupplierFileValidator : Interfaces.IValidator
                 if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(version))
                     continue;
 
-                var vulns = _vulnMatcher.FindVulnerabilities(name, version, "");
+                var vulnsTask = Task.Run(() => InvokeVulnerabilityPluginAsync(name, version));
+                var vulns = vulnsTask.GetAwaiter().GetResult();
+                
                 if (vulns.Count > 0)
                 {
                     hasVulnerableComponent = true;
-                    var cveList = string.Join(", ", vulns.Select(v2 => v2.CVEId));
+                    var cveList = string.Join(", ", vulns.Select(v2 => v2.AdditionalData.TryGetValue("CVE", out var cve) ? cve : v2.Title));
                     result.Details.Add($"❌ {name} v{version}: {cveList}");
                 }
                 else
@@ -281,11 +283,13 @@ public class SupplierFileValidator : Interfaces.IValidator
                 if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(version))
                     continue;
 
-                var vulns = _vulnMatcher.FindVulnerabilities(name, version, "");
+                var vulnsTask = Task.Run(() => InvokeVulnerabilityPluginAsync(name, version));
+                var vulns = vulnsTask.GetAwaiter().GetResult();
+                
                 if (vulns.Count > 0)
                 {
                     hasVulnerableComponent = true;
-                    var cveList = string.Join(", ", vulns.Select(v2 => v2.CVEId));
+                    var cveList = string.Join(", ", vulns.Select(v2 => v2.AdditionalData.TryGetValue("CVE", out var cve) ? cve : v2.Title));
                     result.Details.Add($"❌ {name} v{version}: {cveList}");
                 }
                 else
@@ -308,6 +312,20 @@ public class SupplierFileValidator : Interfaces.IValidator
             result.Details.Add($"⚠ SBOM parse error — {ex.Message}");
             return result;
         }
+    }
+
+    private async Task<List<SentryShield.Plugin.Abstractions.DetectionResult>> InvokeVulnerabilityPluginAsync(string name, string version)
+    {
+        var vulnPlugin = _pluginLoader.GetPlugins().FirstOrDefault(p => p.Name == "Vulnerability Scanner");
+        if (vulnPlugin == null) return new List<SentryShield.Plugin.Abstractions.DetectionResult>();
+        
+        // Emulate the find behavior by sending target params
+        var p = new Dictionary<string, object>
+        {
+            { "TargetSoftware", name },
+            { "TargetVersion", version }
+        };
+        return await vulnPlugin.ExecuteAsync(p);
     }
 
     // -------------------------------------------------------------------------

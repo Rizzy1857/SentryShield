@@ -5,6 +5,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v2.1-alpha] — 2026-06-08
+
+### Added — The Sensors (IDS Integration)
+- **`SentryPlugin.IDS`** — Successfully built the first "v2.5" sensor plugin. Fully autonomous network traffic monitoring via `SharpPcap` and `PacketDotNet`.
+- **Egress Monitoring** — Enforces strict OT subnet egress rules. Flags any traffic destined for ports other than `102` (S7), `502` (Modbus), `44818` (EtherNet/IP), `80`, or `443`.
+- **Packet Flood Detection** — Tracks baseline packet velocity and triggers a `HIGH` severity alert if any single IP exceeds 1,000 packets per minute.
+- **Malicious IP Blocks** — Live-matches incoming/outgoing packets against known-bad IPs from `IOCDb`.
+- **Mock Testing** — Added `IDSPluginTests.cs` using mock `EthernetPacket` > `IPv4Packet` > `TcpPacket` byte arrays to test port and flood anomalies without physical network interfaces.
+
+---
+
+## [v2.0] — 2026-06-08
+
+### Added — The Great Shift (Dynamic Plugin Architecture)
+- **`SentryPlugin.Abstractions`** — Extracted core plugin interfaces (`IDetectionPlugin`, `PluginContext`, `PluginConfig`) into a standalone, lightweight shared library.
+- **Dynamic Loading Engine** — `SentryWorker` now uses reflection to hot-load isolated plugin DLLs from the `Plugins/` directory at runtime. This completes the shift from a monolithic hardcoded service to a fully modular architecture.
+- **`SentryPlugin.Vulnerability`** — Migrated the `VulnerabilityMatcher` engine into its own autonomous plugin.
+- **`SentryPlugin.USB`** — Migrated the `USBMonitor` engine into its own autonomous plugin.
+- **Build Pipeline Upgrades** — The `SentryLegacyService.csproj` and `SentryService.csproj` now automatically copy compiled plugin DLLs to the central `Plugins` output directory.
+
+### Fixed — Undocumented NIST API Zero-Day & PowerShell Bugs
+- **NVD API Firewall Bypass** — Discovered and patched an undocumented change in NIST's Web Application Firewall that was blindly returning `404 Not Found` for the officially documented `apiKey` header. The Python `cert_parser.py` was updated to use the undocumented `api_key` casing, successfully restoring the 50-req/30s sync capability.
+- **API Key Fallback Strategy** — Added self-healing logic to `cert_parser.py`: If NVD servers reject an API key (HTTP 404/403), the parser instantly drops the key, logs a warning, and gracefully downgrades to unauthenticated requests without crashing the sync.
+- **PowerShell Legacy Parser Crashes** — Fixed an extremely elusive parsing bug in older versions of PowerShell (v5.1) where inline backticks (`` `n ``) and Unicode block characters (`▄▖`) over Parallels UNC paths caused catastrophic "missing terminator" and "ampersand" syntax crashes. Completely sanitized `build_and_run.ps1` to raw ASCII.
+- **MSBuild Caching Bug** — Added `dotnet clean` step for `SentryLegacyService` in `build_and_run.ps1` to prevent aggressive MSBuild caching from skipping the deployment of updated Python scripts.
+
 ## [v1.2] — 2026-06-05
 
 ### Added — UI Engine Integration & Build Automation

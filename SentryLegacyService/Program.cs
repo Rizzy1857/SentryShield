@@ -4,6 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SentryShield.Core.Logging;
 using SentryShield.Database;
+using SentryShield.Core;
+using System.IO;
 
 namespace SentryShield.LegacyService;
 
@@ -50,7 +52,11 @@ internal static class Program
         // ── Infrastructure ────────────────────────────────────────────────────
         var eventLog  = new EventLogWriter(config.EventLog.Source);
         var historyDb = new ScanHistoryDb(logger, config.Paths.DatabasePath);
-        var vulnDb    = new VulnerabilityDb(logger, config.Paths.DatabasePath);
+        
+        var pluginLoader = new PluginLoader(logger, config.Paths.DatabasePath);
+        var pluginsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins");
+        if (Directory.Exists(pluginsDir)) pluginLoader.LoadPlugins(pluginsDir);
+
         var yaraGuard = new LegacyYaraGuard(logger, config);
 
         // Ensure DB schema is initialised before first scan
@@ -59,7 +65,7 @@ internal static class Program
         dbInit.InitializeAsync().GetAwaiter().GetResult();
 
         // ── Service ───────────────────────────────────────────────────────────
-        var host = new LegacyServiceHost(logger, config, historyDb, vulnDb, eventLog, yaraGuard);
+        var host = new LegacyServiceHost(logger, config, historyDb, pluginLoader, eventLog, yaraGuard);
 
         ServiceBase.Run(host);
     }

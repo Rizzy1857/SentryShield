@@ -10,6 +10,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\SentryCore\SentryCore.csproj" />
+    <ProjectReference Include="..\..\SentryPlugin.Vulnerability\SentryPlugin.Vulnerability.csproj" />
+    <ProjectReference Include="..\..\SentryPlugin.USB\SentryPlugin.USB.csproj" />
+    <ProjectReference Include="..\..\SentryPlugin.IDS\SentryPlugin.IDS.csproj" />
     <ProjectReference Include="..\..\SentryDatabase\SentryDatabase.csproj" />
 
     <PackageReference Include="NUnit" Version="4.1.0" />
@@ -20,6 +23,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="SharpPcap" Version="6.3.0" />
+    <PackageReference Include="PacketDotNet" Version="1.4.7" />
+    <PackageReference Include="Moq" Version="4.20.70" />
   </ItemGroup>
 
 </Project>

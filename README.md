@@ -6,8 +6,8 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%207%2F10%2F11-blue)]()
 [![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%204.8-purple)]()
 [![Python](https://img.shields.io/badge/Python-3.11-yellow)]()
-[![Tests](https://img.shields.io/badge/Tests-40%20NUnit%20%7C%2016%20pytest-green)]()
-[![Version](https://img.shields.io/badge/Version-v2.0--dev-orange)]()
+[![Tests](https://img.shields.io/badge/Tests-43%20NUnit%20%7C%2016%20pytest-green)]()
+[![Version](https://img.shields.io/badge/Version-v2.1--alpha-orange)]()
 
 ---
 
@@ -165,7 +165,8 @@ See `Docs/SETUP.md` → Section 7–9 for the full deployment guide.
 | Vulnerability matching | `VulnerabilityMatcherTests.cs` | 15 |
 | USB threat detection | `USBMonitorTests.cs` | 11 |
 | Supplier file gateway | `SupplierFileValidatorTests.cs` | 14 |
-| **NUnit total** | | **40** |
+| Network IDS | `IDSPluginTests.cs` | 3 |
+| **NUnit total** | | **43** |
 | Python (YARA + NVD parser) | `test_sentryshield.py` | 16 |
 | **Grand total** | | **56** |
 
@@ -237,7 +238,8 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 | Version | Date | Highlights |
 |---------|------|-----------|
-| v2.0-dev | 2026-06-04 | .NET 4.8 dual-target, `SentryLegacyService` for Win7/WES7 HMIs, remediation steps on all findings |
+| v2.1-alpha | 2026-06-08 | First v2.5 sensor integration: `IDSPlugin` network traffic monitoring |
+| v2.0-dev | 2026-06-08 | "The Great Shift" to `SentryPlugin.Abstractions`, NVD WAF fixes, dual-target support |
 | v1.1 | 2026-06-04 | Live CERT-In pipeline, `init_db.py`, WiX installer, 25 new tests |
 | v1.0 | 2026-06-03 | Initial full build — all 4 pillars, WPF dashboard, 31 tests |
 
@@ -270,5 +272,3 @@ dotnet build SentryLegacyService/SentryLegacyService.csproj
 :: 5. Confirm existing net8 tests are unaffected
 dotnet test Tests/SentryCore.Tests/ --framework net8.0-windows
 ```
-
-Once all 5 commands pass, remove this section and tag the commit as `v2.0`.

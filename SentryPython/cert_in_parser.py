@@ -95,26 +95,50 @@ class CERTInRSSParser:
                 link  = item.findtext("link", "").strip()
                 pub   = item.findtext("pubDate", "") or item.findtext("published", "")
                 desc  = item.findtext("description", "")
-
-                # Extract CIVN ID from title or link
-                civn_match = CIVN_PATTERN.search(title) or CIVN_PATTERN.search(link)
-                civn_id = civn_match.group(0).upper() if civn_match else ""
-
-                # Extract any CVE IDs already in the description/title
-                cves = list(set(CVE_PATTERN.findall(title + " " + desc)))
-
-                advisories.append({
-                    "civn_id": civn_id,
-                    "title": title,
-                    "link": link,
-                    "pub_date": pub[:10] if pub else "",
-                    "cves_in_rss": [c.upper() for c in cves],
-                })
+                advisories.append(self._process_item(title, link, pub, desc))
 
         except ElementTree.ParseError as e:
-            log.warning("RSS XML parse error: %s", e)
+            log.warning("RSS XML parse error: %s. Falling back to regex parser.", e)
+            advisories = self._regex_fallback_parse(xml_text)
 
         return advisories
+
+    def _process_item(self, title: str, link: str, pub: str, desc: str) -> dict:
+        civn_match = CIVN_PATTERN.search(title) or CIVN_PATTERN.search(link)
+        civn_id = civn_match.group(0).upper() if civn_match else ""
+        cves = list(set(CVE_PATTERN.findall(title + " " + desc)))
+        return {
+            "civn_id": civn_id,
+            "title": title,
+            "link": link,
+            "pub_date": pub[:10] if pub else "",
+            "cves_in_rss": [c.upper() for c in cves],
+        }
+
+    def _regex_fallback_parse(self, xml_text: str) -> list[dict]:
+        advisories = []
+        items = re.findall(r"<item.*?>(.*?)</item>", xml_text, re.DOTALL | re.IGNORECASE)
+        if not items:
+            items = re.findall(r"<entry.*?>(.*?)</entry>", xml_text, re.DOTALL | re.IGNORECASE)
+        
+        for item in items:
+            title_m = re.search(r"<title.*?>(.*?)</title>", item, re.DOTALL | re.IGNORECASE)
+            link_m = re.search(r"<link.*?>(.*?)</link>", item, re.DOTALL | re.IGNORECASE)
+            pub_m = re.search(r"<(?:pubDate|published).*?>(.*?)</(?:pubDate|published)>", item, re.DOTALL | re.IGNORECASE)
+            desc_m = re.search(r"<description.*?>(.*?)</description>", item, re.DOTALL | re.IGNORECASE)
+            
+            title = self._strip_cdata(title_m.group(1).strip() if title_m else "")
+            link = self._strip_cdata(link_m.group(1).strip() if link_m else "")
+            pub = self._strip_cdata(pub_m.group(1).strip() if pub_m else "")
+            desc = self._strip_cdata(desc_m.group(1).strip() if desc_m else "")
+            
+            advisories.append(self._process_item(title, link, pub, desc))
+        return advisories
+
+    def _strip_cdata(self, text: str) -> str:
+        if text.startswith("<![CDATA[") and text.endswith("]]>"):
+            return text[9:-3]
+        return text
 
 
 # ---------------------------------------------------------------------------
