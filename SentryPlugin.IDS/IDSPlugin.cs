@@ -21,11 +21,11 @@ namespace SentryShield.Plugin.IDS
         public string Name => "IDSPlugin";
         public string Version => "1.0.0";
 
-        private PluginContext _context;
+        private PluginContext? _context;
         private readonly int[] _allowedPorts = { 102, 502, 44818, 80, 443 };
         private readonly ConcurrentQueue<DetectionResult> _findings = new ConcurrentQueue<DetectionResult>();
         private readonly ConcurrentDictionary<IPAddress, int> _packetCounts = new ConcurrentDictionary<IPAddress, int>();
-        private DateTime _lastCountReset = DateTime.UtcNow;
+        private long _lastCountResetTicks = DateTime.UtcNow.Ticks;
         private HashSet<string> _badIps = new HashSet<string>();
         // Keep track of reported alerts to prevent spamming
         private ConcurrentDictionary<string, bool> _reportedAlerts = new ConcurrentDictionary<string, bool>();
@@ -40,7 +40,7 @@ namespace SentryShield.Plugin.IDS
         {
             // IOCDb stores file hashes only — IP IOC table is a v3.0 addition
             // Bad IP detection currently uses hardcoded list only
-            _context.Logger?.LogInformation("[IDS] IP IOC lookup not yet available — skipping.");
+            _context?.Logger?.LogInformation("[IDS] IP IOC lookup not yet available — skipping.");
         }
 
         public Task<List<DetectionResult>> ExecuteAsync(Dictionary<string, object> parameters)
@@ -56,14 +56,14 @@ namespace SentryShield.Plugin.IDS
             var results = new List<DetectionResult>();
             _packetCounts.Clear();
             _reportedAlerts.Clear();
-            _lastCountReset = DateTime.UtcNow;
+            Interlocked.Exchange(ref _lastCountResetTicks, DateTime.UtcNow.Ticks);
 
             try
             {
                 var devices = CaptureDeviceList.Instance;
                 if (devices.Count == 0)
                 {
-                    _context.Logger?.LogWarning("[IDS] No network capture devices found. Falling back gracefully.");
+                    _context?.Logger?.LogWarning("[IDS] No network capture devices found. Falling back gracefully.");
                     return results;
                 }
 
@@ -77,11 +77,11 @@ namespace SentryShield.Plugin.IDS
                     }
                     catch (Exception ex)
                     {
-                        _context.Logger?.LogWarning(ex, $"[IDS] Could not open device {device.Name}");
+                        _context?.Logger?.LogWarning(ex, $"[IDS] Could not open device {device.Name}");
                     }
                 }
 
-                _context.Logger?.LogInformation("[IDS] Capture started. Monitoring traffic...");
+                _context?.Logger?.LogInformation("[IDS] Capture started. Monitoring traffic...");
 
                 // Run for a fixed 15 second monitoring window for the test/scan interval
                 await Task.Delay(TimeSpan.FromSeconds(15), ct);
@@ -99,7 +99,7 @@ namespace SentryShield.Plugin.IDS
             }
             catch (Exception ex)
             {
-                _context.Logger?.LogError(ex, "[IDS] Fatal error during packet capture.");
+                _context?.Logger?.LogError(ex, "[IDS] Fatal error during packet capture.");
             }
 
             while (_findings.TryDequeue(out var finding))
@@ -112,7 +112,7 @@ namespace SentryShield.Plugin.IDS
 
         public void OnAlert(DetectionResult result)
         {
-            _context.Logger?.LogWarning($"[IDS ALERT] {result.Title}: {result.Description}");
+            _context?.Logger?.LogWarning($"[IDS ALERT] {result.Title}: {result.Description}");
         }
 
         private void Device_OnPacketArrival(object sender, PacketCapture e)
@@ -136,10 +136,16 @@ namespace SentryShield.Plugin.IDS
                 // 1. High Packet Rate (>1000/min baseline)
                 var count = _packetCounts.AddOrUpdate(srcIp, 1, (_, c) => c + 1);
                 
-                if ((DateTime.UtcNow - _lastCountReset).TotalMinutes >= 1.0)
+                long nowTicks = DateTime.UtcNow.Ticks;
+                long lastTicks = Interlocked.Read(ref _lastCountResetTicks);
+
+                if (new TimeSpan(nowTicks - lastTicks).TotalMinutes >= 1.0)
                 {
-                    _packetCounts.Clear();
-                    _lastCountReset = DateTime.UtcNow;
+                    // Only the thread that successfully updates the time will clear the dictionary
+                    if (Interlocked.CompareExchange(ref _lastCountResetTicks, nowTicks, lastTicks) == lastTicks)
+                    {
+                        _packetCounts.Clear();
+                    }
                 }
                 else if (count == 1000) 
                 {

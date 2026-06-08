@@ -7,7 +7,7 @@
 [![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%204.8-purple)]()
 [![Python](https://img.shields.io/badge/Python-3.11-yellow)]()
 [![Tests](https://img.shields.io/badge/Tests-43%20NUnit%20%7C%2016%20pytest-green)]()
-[![Version](https://img.shields.io/badge/Version-v2.1--alpha-orange)]()
+[![Version](https://img.shields.io/badge/Version-v2.1--stable-orange)]()
 
 ---
 

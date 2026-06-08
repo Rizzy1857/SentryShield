@@ -111,7 +111,15 @@ public class SentryWorker : BackgroundService
                 _logger.LogInformation("Executing plugin: {PluginName} v{Version}", plugin.Name, plugin.Version);
                 try
                 {
-                    var results = await plugin.ExecuteAsync(new Dictionary<string, object>());
+                    using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    timeoutCts.CancelAfter(TimeSpan.FromMinutes(5));
+
+                    var parameters = new Dictionary<string, object>
+                    {
+                        { "cancellationToken", timeoutCts.Token }
+                    };
+
+                    var results = await plugin.ExecuteAsync(parameters);
                     foreach (var result in results)
                     {
                         findings.Add(new Core.Models.Finding
@@ -128,6 +136,10 @@ public class SentryWorker : BackgroundService
                         });
                     }
                     findingsCount += results.Count;
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogError("Plugin {PluginName} timed out and was killed to prevent orchestration deadlock.", plugin.Name);
                 }
                 catch (Exception ex)
                 {

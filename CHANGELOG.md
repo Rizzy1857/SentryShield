@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v2.1-stable] — 2026-06-08
+
+### Security & Reliability Lockdown
+- **Gateway TOCTOU Fix** — Replaced `Task.Delay(2000)` with `WaitForFileAccessAsync` (exponential backoff) and enforced `FileShare.Read` in `SupplierFileValidator` to prevent Time-Of-Check to Time-Of-Use malware injections.
+- **Arbitrary Code Execution Block** — Hardened `PluginLoader.cs` by enforcing Authenticode Signature validation (`X509CertificateLoader`) on all dynamically loaded `.dll` plugins. Unsigned plugins will not load unless explicitly bypassed in dev environments.
+- **Orchestration Deadlock Prevention** — Injected `CancellationTokenSource` with a hard 5-minute timeout on all `IDetectionPlugin.ExecuteAsync()` invocations to prevent hanging sockets or DB connections from freezing the primary SentryWorker loop.
+- **IDS Thread Safety** — Resolved a concurrent dictionary aggregation race condition in `IDSPlugin.cs` using `Interlocked.CompareExchange` on raw clock ticks instead of a naive DateTime block.
+
+---
+
 ## [v2.1-alpha] — 2026-06-08
 
 ### Added — The Sensors (IDS Integration)

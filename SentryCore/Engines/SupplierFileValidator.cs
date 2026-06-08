@@ -335,7 +335,7 @@ public class SupplierFileValidator
     private static string ComputeSHA256(string filePath)
     {
         using var sha = SHA256.Create();
-        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         return BitConverter.ToString(sha.ComputeHash(fs)).Replace("-", "").ToLower();
     }
 
@@ -348,7 +348,7 @@ public class SupplierFileValidator
             if (fileLen == 0) return 0;
 
             var buf = new byte[Math.Min(SampleBytes, fileLen)];
-            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             var read = fs.Read(buf, 0, buf.Length);
 
             var freq = new long[256];

@@ -112,8 +112,13 @@ public class GatewayFolderWatcher : IDisposable
             _recentlyProcessed[filePath] = DateTime.UtcNow;
         }
 
-        // Wait briefly for file copy to complete before scanning
-        await Task.Delay(2000);
+        // Wait for exclusive lock (timeout after 5 minutes)
+        if (!await WaitForFileAccessAsync(filePath, TimeSpan.FromMinutes(5)))
+        {
+            _logger.LogError("[Gateway] File locked too long or inaccessible. Quarantining (Fail Closed): {File}", filePath);
+            QuarantineFile(filePath);
+            return;
+        }
 
         if (!File.Exists(filePath)) return;
 
@@ -214,6 +219,26 @@ public class GatewayFolderWatcher : IDisposable
         {
             _logger.LogError(ex, "[Gateway] Failed to quarantine {File}", filePath);
         }
+    }
+
+    private async Task<bool> WaitForFileAccessAsync(string filePath, TimeSpan timeout)
+    {
+        var start = DateTime.UtcNow;
+        while ((DateTime.UtcNow - start) < timeout)
+        {
+            if (!File.Exists(filePath)) return false;
+            try
+            {
+                // Request exclusive read-write lock to verify nothing else is writing
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                return true;
+            }
+            catch (IOException)
+            {
+                await Task.Delay(1000); // Backoff
+            }
+        }
+        return false;
     }
 
     public void Dispose() => _watcher?.Dispose();

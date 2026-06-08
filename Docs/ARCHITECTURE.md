@@ -10,7 +10,7 @@ SentryShield is an **offline-first, lightweight security monitoring system** for
 │                                                                     │
 │  LIVE DATA SOURCES                                                  │
 │  NVD API ──────┐                                                    │
-│  CERT-In ──────┼──► init_db.py (one-time) ──► vulnerability.db     │
+│  CERT-In ──────┼──► init_db.py (one-time) ──► vulnerability.db      │
 │                │         db_sync.py (nightly delta)                 │
 │                │                    │                               │
 │  ┌─────────────┴──────┐  subprocess IPC  ┌───────────────────────┐  │
@@ -19,21 +19,21 @@ SentryShield is an **offline-first, lightweight security monitoring system** for
 │  │                    │  stdout JSON    │  cert_parser.py        │  │
 │  │  SentryWorker      │  120s timeout   │  cert_in_parser.py     │  │
 │  │  GatewayFolderWatch│                 │  db_sync.py            │  │
-│  └──────────┬─────────┘                 └───────────────────────┘  │
+│  └──────────┬─────────┘                 └───────────────────────-┘  │
 │             │                                                       │
 │             ▼                                                       │
 │  ┌──────────────────────────────────────────────────────────────┐   │
-│  │                        SentryCore                             │   │
-│  │  VulnerabilityMatcher   USBMonitor   DriverAuditor            │   │
-│  │  SupplierFileValidator  HardeningAudit  SoftwareEnumerator    │   │
+│  │                        SentryCore                            │   │
+│  │  VulnerabilityMatcher   USBMonitor   DriverAuditor           │   │
+│  │  SupplierFileValidator  HardeningAudit  SoftwareEnumerator   │   │
 │  └───────────────────────────────────┬──────────────────────────┘   │
 │                                      │                              │
-│  ┌───────────────────┐    ┌───────────┴────────────────────────┐   │
+│  ┌───────────────────┐    ┌───────────┴──────────────────────-──┐   │
 │  │   SentryDatabase  │◄───│            SentryUI                 │   │
-│  │   SQLite 3 (WAL)  │    │  WPF Dashboard (MVVM)              │   │
+│  │   SQLite 3 (WAL)  │    │  WPF Dashboard (MVVM)               │   │
 │  │   7 tables        │    │  FindingsView | GatewayView         │   │
 │  │   9 indexes       │    │  SettingsView | DashboardViewModel  │   │
-│  └───────────────────┘    └────────────────────────────────────┘   │
+│  └───────────────────┘    └────────────────────────────────────-┘   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 

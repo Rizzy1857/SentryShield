@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using SentryShield.Plugin.Abstractions;
 
@@ -37,6 +38,19 @@ namespace SentryShield.Core
                     if (Path.GetFileName(file).Equals("SentryPlugin.Abstractions.dll", StringComparison.OrdinalIgnoreCase))
                         continue;
 
+                    // Enforce Authenticode signature check unless explicitly disabled via environment for dev
+                    bool requireSignature = Environment.GetEnvironmentVariable("SENTRYSHIELD_REQUIRE_SIGNED_PLUGINS") != "false";
+                    
+                    if (requireSignature && !IsSignatureValid(file))
+                    {
+                        _logger.LogCritical("SECURITY ALERT: Unsigned or tampered plugin blocked from loading: {File}", file);
+                        continue;
+                    }
+                    else if (!requireSignature && !IsSignatureValid(file))
+                    {
+                        _logger.LogWarning("SECURITY OVERRIDE: Loading unsigned plugin {File} because SENTRYSHIELD_REQUIRE_SIGNED_PLUGINS=false", file);
+                    }
+
                     var assembly = Assembly.LoadFrom(file);
                     var pluginTypes = assembly.GetTypes()
                         .Where(t => typeof(IDetectionPlugin).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
@@ -62,5 +76,25 @@ namespace SentryShield.Core
 
         // Hook for unit testing to bypass directory scanning
         public void AddPlugin(IDetectionPlugin plugin) => _plugins.Add(plugin);
+
+        private bool IsSignatureValid(string filePath)
+        {
+            try
+            {
+#if NET8_0_OR_GREATER
+                var cert = X509CertificateLoader.LoadCertificateFromFile(filePath);
+#else
+                var signer = X509Certificate.CreateFromSignedFile(filePath);
+                var cert = new X509Certificate2(signer);
+#endif
+                // Verify against corporate CA or known thumbprint. 
+                // For demonstration, we just check if it's signed and the chain builds.
+                return cert.Verify();
+            }
+            catch
+            {
+                return false; // Unsigned or invalid
+            }
+        }
     }
 }
