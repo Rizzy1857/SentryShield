@@ -35,6 +35,7 @@ import re
 import sqlite3
 import sys
 import time
+import ssl
 from datetime import datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
@@ -430,7 +431,8 @@ class CERTInParser:
         """Fetch and parse the CERT-In RSS feed."""
         try:
             req = Request(CERT_IN_RSS, headers={"User-Agent": "SentryShield/1.0"})
-            with urlopen(req, timeout=20) as resp:
+            ctx = ssl._create_unverified_context()
+            with urlopen(req, timeout=20, context=ctx) as resp:
                 xml_text = resp.read().decode("utf-8", errors="replace")
             return self._rss_parser.parse(xml_text)
         except HTTPError as e:
@@ -445,7 +447,8 @@ class CERTInParser:
         """Scrape a CERT-In advisory HTML page and extract all CVE IDs."""
         try:
             req = Request(url, headers={"User-Agent": "SentryShield/1.0"})
-            with urlopen(req, timeout=15) as resp:
+            ctx = ssl._create_unverified_context()
+            with urlopen(req, timeout=15, context=ctx) as resp:
                 html = resp.read().decode("utf-8", errors="replace")
 
             parser = AdvisoryHTMLParser()
