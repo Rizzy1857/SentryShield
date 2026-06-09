@@ -26,7 +26,7 @@ public class ScanHistoryDb : IDisposable
         {
             if (_conn == null || _conn.State != System.Data.ConnectionState.Open)
             {
-                _conn = new SqliteConnection($"Data Source={_dbPath};");
+                _conn = new SqliteConnection($"Data Source={_dbPath}");
                 _conn.Open();
             }
             return _conn;

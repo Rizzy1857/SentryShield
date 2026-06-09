@@ -266,24 +266,4 @@ MIT — see `LICENSE` if one applies.
 
 ---
 
-## ⚠️ Pending: Windows Build Verification Required
 
-> These steps **cannot be done on macOS** — the .NET SDK is not installed here (only the VS Code runtime extension is present). They must be run on a Windows machine with the .NET 8 SDK installed.
-
-```cmd
-:: 1. Register the new legacy service project with the solution
-dotnet sln SentryShield.sln add SentryLegacyService/SentryLegacyService.csproj
-
-:: 2. Verify SentryCore compiles for both targets
-dotnet build SentryCore/SentryCore.csproj --framework net48
-dotnet build SentryCore/SentryCore.csproj --framework net8.0-windows
-
-:: 3. Verify SentryDatabase compiles for net48
-dotnet build SentryDatabase/SentryDatabase.csproj --framework net48
-
-:: 4. Verify the new legacy service project builds
-dotnet build SentryLegacyService/SentryLegacyService.csproj
-
-:: 5. Confirm existing net8 tests are unaffected
-dotnet test Tests/SentryCore.Tests/ --framework net8.0-windows
-```

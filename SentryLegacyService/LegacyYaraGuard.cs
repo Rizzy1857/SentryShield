@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using SentryShield.Core.Engines;
 using SentryShield.Database;
 
-
 namespace SentryShield.LegacyService;
 
 /// <summary>

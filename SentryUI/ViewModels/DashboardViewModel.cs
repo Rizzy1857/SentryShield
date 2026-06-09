@@ -529,7 +529,9 @@ public class RelayCommand<T> : ICommand
 
     public void Execute(object? parameter) => _execute((T?)parameter);
 
+#pragma warning disable CS0067 // The event is never used
     public event EventHandler? CanExecuteChanged;
+#pragma warning restore CS0067
 }
 
 /// <summary>Minimal ILogger implementation for ViewModel use.</summary>

@@ -14,9 +14,9 @@ namespace SentryShield.Tests
     [TestFixture]
     public class IDSPluginTests
     {
-        private IDSPlugin _plugin;
-        private Mock<ILogger> _mockLogger;
-        private List<string> _loggedAlerts;
+        private IDSPlugin _plugin = null!;
+        private Mock<ILogger> _mockLogger = null!;
+        private List<string> _loggedAlerts = null!;
 
         [SetUp]
         public void Setup()
@@ -30,8 +30,8 @@ namespace SentryShield.Tests
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
                 It.IsAny<It.IsAnyType>(),
-                It.IsAny<System.Exception>(),
-                (System.Func<It.IsAnyType, System.Exception, string>)It.IsAny<object>()))
+                It.IsAny<System.Exception?>(),
+                (System.Func<It.IsAnyType, System.Exception?, string>)It.IsAny<object>()))
                 .Callback(new InvocationAction(invocation =>
                 {
                     var state = invocation.Arguments[2];

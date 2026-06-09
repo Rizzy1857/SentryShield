@@ -39,12 +39,22 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] %(levelname)s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    stream=sys.stderr,
-)
+class ColorFormatter(logging.Formatter):
+    def format(self, record):
+        msg = super().format(record)
+        if record.name == "cert_parser" or "NVD" in msg:
+            return f"\033[96m{msg}\033[0m" # Cyan
+        elif record.name == "cert_in" or "CERT-In" in msg:
+            return f"\033[93m{msg}\033[0m" # Yellow
+        return msg
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+if logger.hasHandlers():
+    logger.handlers.clear()
+handler = logging.StreamHandler(sys.stderr)
+handler.setFormatter(ColorFormatter("[%(asctime)s] %(levelname)s %(message)s", "%Y-%m-%d %H:%M:%S"))
+logger.addHandler(handler)
 log = logging.getLogger("init_db")
 
 # Full SQLite schema — mirrors SentryDatabase/Schema/init.sql exactly
