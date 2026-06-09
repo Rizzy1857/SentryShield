@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "               SentryShield               " -ForegroundColor Cyan
+Write-Host "         S E N T R Y S H I E L D          " -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # Handle UNC paths in Parallels
