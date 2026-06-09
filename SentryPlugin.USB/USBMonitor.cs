@@ -4,8 +4,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 
 namespace SentryShield.Plugin.USB
 {
@@ -59,9 +62,17 @@ namespace SentryShield.Plugin.USB
         public async Task<List<USBThreat>> ScanUSBDriveAsync(string drivePath)
         {
             _logger.LogInformation("[USBPlugin] Scanning USB drive: {Path}", drivePath);
+
+            // 1. Notify User
+            ShowToastNotification("USB Detected", "Scanning before use...");
+
+            // 2. Lock Down
+            SetGlobalUsbWriteProtect(true);
+            LockDriveExecution(drivePath);
+
             var allThreats = new List<USBThreat>();
 
-            string[] files;
+            string[] files = Array.Empty<string>();
             try
             {
                 files = Directory.GetFiles(drivePath, "*.*", SearchOption.AllDirectories);
@@ -69,7 +80,6 @@ namespace SentryShield.Plugin.USB
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[USBPlugin] Cannot enumerate drive: {Path}", drivePath);
-                return allThreats;
             }
 
             var yaraThreats = await RunYaraScanAsync(drivePath);
@@ -86,17 +96,97 @@ namespace SentryShield.Plugin.USB
                 catch (Exception ex) { _logger.LogWarning(ex, "[USBPlugin] Error analyzing file: {File}", file); }
             }
 
+            // 3. Post-scan decision
+            if (allThreats.Count == 0)
+            {
+                UnlockDriveExecution(drivePath);
+                SetGlobalUsbWriteProtect(false);
+                ShowToastNotification("USB Cleared", "No threats found. Safe to use.");
+            }
+            else
+            {
+                // Leave WriteProtect and ACL Deny active
+                ShowToastNotification("USB Blocked", "Threats found! Drive remains locked.");
+            }
+
             return allThreats;
+        }
+
+        // -------------------------------------------------------------------------
+        // Auto-Block Helpers
+        // -------------------------------------------------------------------------
+
+        private void SetGlobalUsbWriteProtect(bool enable)
+        {
+            if (!OperatingSystem.IsWindows()) return;
+            try
+            {
+                using var key = Registry.LocalMachine.CreateSubKey(@"SYSTEM\CurrentControlSet\Control\StorageDevicePolicies");
+                key.SetValue("WriteProtect", enable ? 1 : 0, RegistryValueKind.DWord);
+                _logger.LogInformation("[USBPlugin] Global USB WriteProtect set to {State}", enable);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[USBPlugin] Failed to toggle USB WriteProtect (requires Administrator)");
+            }
+        }
+
+        private void LockDriveExecution(string drivePath)
+        {
+            if (!OperatingSystem.IsWindows()) return;
+            try
+            {
+                var dInfo = new DirectoryInfo(drivePath);
+                var security = dInfo.GetAccessControl();
+                var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+                security.AddAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.ExecuteFile, AccessControlType.Deny));
+                dInfo.SetAccessControl(security);
+                _logger.LogInformation("[USBPlugin] Drive execution locked via ACL: {Path}", drivePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[USBPlugin] Failed to lock drive execution: {Path}", drivePath);
+            }
+        }
+
+        private void UnlockDriveExecution(string drivePath)
+        {
+            if (!OperatingSystem.IsWindows()) return;
+            try
+            {
+                var dInfo = new DirectoryInfo(drivePath);
+                var security = dInfo.GetAccessControl();
+                var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+                security.RemoveAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.ExecuteFile, AccessControlType.Deny));
+                dInfo.SetAccessControl(security);
+                _logger.LogInformation("[USBPlugin] Drive execution unlocked via ACL: {Path}", drivePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[USBPlugin] Failed to unlock drive execution: {Path}", drivePath);
+            }
+        }
+
+        private void ShowToastNotification(string title, string message)
+        {
+            if (!OperatingSystem.IsWindows()) return;
+            try
+            {
+                System.Diagnostics.EventLog.WriteEntry(
+                    "SentryShield",
+                    $"{title} - {message}",
+                    System.Diagnostics.EventLogEntryType.Information,
+                    2001);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "[USBPlugin] Failed to display toast notification");
+            }
         }
 
         private async Task<List<USBThreat>> RunYaraScanAsync(string drivePath)
         {
             var threats = new List<USBThreat>();
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var solutionDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
-            var pythonPath = "python";
-            var scriptPath = Path.Combine(solutionDir, "SentryPython", "yara_scanner.py");
-            var rulesDir = Path.Combine(solutionDir, "rules");
 
             try
             {
@@ -107,16 +197,71 @@ namespace SentryShield.Plugin.USB
                 }
                 else
                 {
+                    // Resolve paths: prefer scripts/ copied next to the executable first,
+                    // then fall back to the source tree (dev environment).
+                    var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                    var localScript = Path.Combine(baseDir, "scripts", "yara_scanner.py");
+                    var localRules  = Path.Combine(baseDir, "rules");
+
+                    // Source-tree fallback (4 levels up from bin/Debug/net8.0-windows/)
+                    var solutionDir  = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
+                    var sourceScript = Path.Combine(solutionDir, "SentryPython", "yara_scanner.py");
+                    var sourceRules  = Path.Combine(solutionDir, "rules");
+
+                    var scriptPath = File.Exists(localScript) ? localScript : sourceScript;
+                    var rulesDir   = Directory.Exists(localRules) ? localRules : sourceRules;
+
                     if (!File.Exists(scriptPath))
                     {
-                        _logger.LogWarning("[USBPlugin] Python or yara_scanner.py not found.");
+                        _logger.LogWarning("[USBPlugin] yara_scanner.py not found at '{Local}' or '{Source}'. Skipping YARA scan.",
+                            localScript, sourceScript);
                         return threats;
                     }
 
-                    var args = $"\"{scriptPath}\" \"{rulesDir}\" \"{drivePath}\"";
+                    if (!Directory.Exists(rulesDir))
+                    {
+                        _logger.LogWarning("[USBPlugin] YARA rules directory not found at '{Rules}'. Skipping YARA scan.", rulesDir);
+                        return threats;
+                    }
+
+                    // Try local virtual environment first, then fallback to system Python.
+                    var venvWin = Path.Combine(solutionDir, "SentryPython", "venv", "Scripts", "python.exe");
+                    var venvMac = Path.Combine(solutionDir, "SentryPython", "venv", "bin", "python");
+
+                    string? pythonExe = null;
+                    var candidates = new[] { venvWin, venvMac, "py", "python", "python3" };
+
+                    foreach (var candidate in candidates)
+                    {
+                        try
+                        {
+                            var probe = new ProcessStartInfo
+                            {
+                                FileName = candidate,
+                                Arguments = "--version",
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                UseShellExecute = false,
+                                CreateNoWindow = true
+                            };
+                            using var p = Process.Start(probe);
+                            if (p != null) { p.WaitForExit(2000); pythonExe = candidate; break; }
+                        }
+                        catch { /* not found, try next */ }
+                    }
+
+                    if (pythonExe == null)
+                    {
+                        _logger.LogWarning("[USBPlugin] No Python interpreter found (tried py, python, python3). Skipping YARA scan.");
+                        return threats;
+                    }
+
+                    // Use the proper named-argument CLI format that yara_scanner.py expects.
+                    var args = $"\"{scriptPath}\" --scan-dir \"{drivePath}\" --rules \"{rulesDir}\" --json";
+
                     var psi = new ProcessStartInfo
                     {
-                        FileName = pythonPath,
+                        FileName = pythonExe,
                         Arguments = args,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
@@ -127,8 +272,25 @@ namespace SentryShield.Plugin.USB
                     using var process = Process.Start(psi);
                     if (process == null) return threats;
 
-                    output = await process.StandardOutput.ReadToEndAsync();
+                    // Read stdout (JSON) and stderr (logs) concurrently to avoid deadlock
+                    // on processes that write large amounts to either stream.
+                    var stdoutTask = process.StandardOutput.ReadToEndAsync();
+                    var stderrTask = process.StandardError.ReadToEndAsync();
+                    await Task.WhenAll(stdoutTask, stderrTask);
                     await Task.Run(() => process.WaitForExit());
+
+                    output = stdoutTask.Result;
+                    var stderr = stderrTask.Result;
+
+                    if (!string.IsNullOrWhiteSpace(stderr))
+                        _logger.LogDebug("[USBPlugin] YARA stderr: {Err}", stderr.Trim());
+
+                    if (process.ExitCode != 0)
+                    {
+                        _logger.LogWarning("[USBPlugin] yara_scanner.py exited with code {Code}. Stderr: {Err}",
+                            process.ExitCode, stderr.Trim());
+                        return threats;
+                    }
                 }
 
                 if (string.IsNullOrWhiteSpace(output)) return threats;
@@ -243,7 +405,7 @@ namespace SentryShield.Plugin.USB
                 using var conn = new SqliteConnection($"Data Source={_globalDbPath}");
                 conn.Open();
                 var cmd = conn.CreateCommand();
-                cmd.CommandText = "SELECT COUNT(1) FROM iocs WHERE hash = @hash";
+                cmd.CommandText = "SELECT COUNT(1) FROM iocs WHERE file_hash = @hash";
                 cmd.Parameters.AddWithValue("@hash", hash);
                 var count = Convert.ToInt32(cmd.ExecuteScalar());
                 return count > 0;

@@ -44,7 +44,7 @@ public class ProcessRunner
     public async Task<string> RunYaraScanAsync(string scanPath)
     {
         var script = Path.Combine(_scriptsDir, "yara_scanner.py");
-        var args = $"\"{script}\" --scan-dir \"{scanPath}\" --rules \"{_rulesDir}\" --json";
+        var args = new[] { script, "--scan-dir", scanPath, "--rules", _rulesDir, "--json" };
         return await RunPythonAsync(args);
     }
 
@@ -54,7 +54,7 @@ public class ProcessRunner
     public async Task<string> RunYaraScanFileAsync(string filePath)
     {
         var script = Path.Combine(_scriptsDir, "yara_scanner.py");
-        var args = $"\"{script}\" --scan-file \"{filePath}\" --rules \"{_rulesDir}\" --json";
+        var args = new[] { script, "--scan-file", filePath, "--rules", _rulesDir, "--json" };
         return await RunPythonAsync(args);
     }
 
@@ -64,7 +64,7 @@ public class ProcessRunner
     public async Task<string> RunDBSyncAsync(string dbPath)
     {
         var script = Path.Combine(_scriptsDir, "db_sync.py");
-        var args = $"\"{script}\" --db \"{dbPath}\" --json";
+        var args = new[] { script, "--db", dbPath, "--json" };
         return await RunPythonAsync(args);
     }
 
@@ -92,12 +92,11 @@ public class ProcessRunner
     /// Spawns a Python process, waits for completion (max 120s), returns stdout.
     /// Logs stderr as warnings.
     /// </summary>
-    private async Task<string> RunPythonAsync(string arguments, int timeoutMs = 120_000)
+    private async Task<string> RunPythonAsync(IEnumerable<string> args, int timeoutMs = 120_000)
     {
         var psi = new ProcessStartInfo
         {
             FileName = _pathOptions.PythonExe,
-            Arguments = arguments,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -106,7 +105,12 @@ public class ProcessRunner
             StandardErrorEncoding = Encoding.UTF8
         };
 
-        _logger.LogDebug("[IPC] Running: {Python} {Args}", _pathOptions.PythonExe, arguments);
+        foreach (var arg in args)
+        {
+            psi.ArgumentList.Add(arg);
+        }
+
+        _logger.LogDebug("[IPC] Running: {Python} {Args}", _pathOptions.PythonExe, string.Join(" ", args));
 
         using var process = new Process { StartInfo = psi };
         var stdoutBuilder = new StringBuilder();

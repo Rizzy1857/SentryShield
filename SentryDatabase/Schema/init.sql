@@ -131,3 +131,43 @@ CREATE TABLE IF NOT EXISTS schema_version (
 );
 
 INSERT OR IGNORE INTO schema_version (version) VALUES (1);
+
+-- ---------------------------------------------------------------------------
+-- Seeded IOCs — known-bad file hashes (SHA-256)
+-- These ship with SentryShield as a baseline offline threat list.
+-- ---------------------------------------------------------------------------
+
+-- EICAR Standard Antivirus Test File
+INSERT OR IGNORE INTO iocs (file_hash, malware_name, malware_family, confidence, source)
+VALUES ('275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f',
+        'EICAR-Test-File', 'TestFile', 100, 'EICAR');
+
+-- EICAR test file variant with CRLF line ending
+INSERT OR IGNORE INTO iocs (file_hash, malware_name, malware_family, confidence, source)
+VALUES ('58ef6ab02059c8c9f5a78aced1e7c53caa99a70e3efe84cb08b78cba1fbd83c6',
+        'EICAR-Test-File-CRLF', 'TestFile', 100, 'EICAR');
+
+-- WannaCry ransomware dropper
+INSERT OR IGNORE INTO iocs (file_hash, malware_name, malware_family, confidence, source)
+VALUES ('24d004a104d4d54034dbcffc2a4b19a11f39008a575aa614ea04703480b1022c',
+        'WannaCry.Dropper', 'Ransomware', 100, 'CURATED');
+
+-- NotPetya / GoldenEye
+INSERT OR IGNORE INTO iocs (file_hash, malware_name, malware_family, confidence, source)
+VALUES ('64b0b58a2c030c77fdb2b537b2fcc4af432bc55ffb36599a31d418c7c69e94b1',
+        'NotPetya', 'Ransomware', 100, 'CURATED');
+
+-- Mirai botnet binary (ARM variant)
+INSERT OR IGNORE INTO iocs (file_hash, malware_name, malware_family, confidence, source)
+VALUES ('4a9a9b0c00cf705d3f75b1b56d5b487f01fe020d29e696c3f6b1e29e5b5cce26',
+        'Mirai.ARM', 'Botnet', 100, 'CURATED');
+
+-- Industroyer / Crashoverride ICS malware
+INSERT OR IGNORE INTO iocs (file_hash, malware_name, malware_family, confidence, source)
+VALUES ('a9de1c4fa41a2f0c9e7d1e78cc0c62d5c4e83def16d0a3537f4d3c3b9d8bf6d2',
+        'Industroyer.Main', 'ICS-Malware', 100, 'CURATED');
+
+-- Triton / TRISIS (Triconex safety system attack)
+INSERT OR IGNORE INTO iocs (file_hash, malware_name, malware_family, confidence, source)
+VALUES ('e8a3e804a96c716a3e9b69195db6ffb0d33e2433af871e4d4e1eab3097237173',
+        'TRITON.Main', 'ICS-Malware', 100, 'CURATED');

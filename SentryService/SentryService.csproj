@@ -22,10 +22,19 @@
     <ProjectReference Include="..\SentryDatabase\SentryDatabase.csproj" />
     
     <!-- Build plugins before service (but do not statically link them) -->
+    <ProjectReference Include="..\SentryPlugin.Firmware\SentryPlugin.Firmware.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
     <ProjectReference Include="..\SentryPlugin.Vulnerability\SentryPlugin.Vulnerability.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
     <ProjectReference Include="..\SentryPlugin.USB\SentryPlugin.USB.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\SentryPlugin.IDS\SentryPlugin.IDS.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\SentryPlugin.Remediation\SentryPlugin.Remediation.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
 
@@ -43,11 +52,22 @@
   </ItemGroup>
   <Target Name="CopyPlugins" AfterTargets="Build">
     <ItemGroup>
-      <PluginFiles Include="..\SentryPlugin.Vulnerability\bin\$(Configuration)\net8.0-windows\SentryPlugin.Vulnerability.dll" />
-      <PluginFiles Include="..\SentryPlugin.USB\bin\$(Configuration)\net8.0-windows\SentryPlugin.USB.dll" />
+      <!-- Copy the plugin DLL + ALL its dependencies (SharpPcap, PacketDotNet, SQLite, etc.)
+           so PluginLoadContext's AssemblyDependencyResolver can find every transitive dep. -->
+      <PluginFiles Include="..\SentryPlugin.Firmware\bin\$(Configuration)\net8.0-windows\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.Vulnerability\bin\$(Configuration)\net8.0-windows\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.USB\bin\$(Configuration)\net8.0-windows\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.IDS\bin\$(Configuration)\net8.0-windows\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.Remediation\bin\$(Configuration)\net8.0-windows\**\*.*" />
+      <!-- Exclude the shared contract so the host's copy is always used -->
+      <PluginFiles Remove="..\**\SentryPlugin.Abstractions.dll" />
+      <PluginFiles Remove="..\**\SentryPlugin.Abstractions.pdb" />
+      <!-- Exclude host-owned logging assemblies to prevent version conflicts -->
+      <PluginFiles Remove="..\**\Microsoft.Extensions.Logging.Abstractions.dll" />
+      <PluginFiles Remove="..\**\Microsoft.Extensions.Logging.dll" />
     </ItemGroup>
     <MakeDir Directories="$(OutDir)Plugins" />
-    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(OutDir)Plugins" />
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(OutDir)Plugins" SkipUnchangedFiles="true" />
   </Target>
 
   <!-- Copy Python scripts into build output so appsettings paths are relative -->

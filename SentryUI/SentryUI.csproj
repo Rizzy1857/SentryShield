@@ -15,10 +15,19 @@
     <ProjectReference Include="..\SentryDatabase\SentryDatabase.csproj" />
 
     <!-- Build plugins before UI (but do not statically link them) -->
+    <ProjectReference Include="..\SentryPlugin.Firmware\SentryPlugin.Firmware.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
     <ProjectReference Include="..\SentryPlugin.Vulnerability\SentryPlugin.Vulnerability.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
     <ProjectReference Include="..\SentryPlugin.USB\SentryPlugin.USB.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\SentryPlugin.IDS\SentryPlugin.IDS.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\SentryPlugin.Remediation\SentryPlugin.Remediation.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
 
@@ -31,11 +40,18 @@
 
   <Target Name="CopyPlugins" AfterTargets="Build">
     <ItemGroup>
-      <PluginFiles Include="..\SentryPlugin.Vulnerability\bin\$(Configuration)\net8.0-windows\SentryPlugin.Vulnerability.dll" />
-      <PluginFiles Include="..\SentryPlugin.USB\bin\$(Configuration)\net8.0-windows\SentryPlugin.USB.dll" />
+      <PluginFiles Include="..\SentryPlugin.Firmware\bin\$(Configuration)\net8.0-windows\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.Vulnerability\bin\$(Configuration)\net8.0-windows\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.USB\bin\$(Configuration)\net8.0-windows\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.IDS\bin\$(Configuration)\net8.0-windows\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.Remediation\bin\$(Configuration)\net8.0-windows\**\*.*" />
+      <PluginFiles Remove="..\**\SentryPlugin.Abstractions.dll" />
+      <PluginFiles Remove="..\**\SentryPlugin.Abstractions.pdb" />
+      <PluginFiles Remove="..\**\Microsoft.Extensions.Logging.Abstractions.dll" />
+      <PluginFiles Remove="..\**\Microsoft.Extensions.Logging.dll" />
     </ItemGroup>
     <MakeDir Directories="$(OutDir)Plugins" />
-    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(OutDir)Plugins" />
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(OutDir)Plugins" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

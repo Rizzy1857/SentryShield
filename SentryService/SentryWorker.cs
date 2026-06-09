@@ -22,6 +22,8 @@ public class SentryWorker : BackgroundService
     private readonly GatewayFolderWatcher _gatewayWatcher;
     private readonly ScanHistoryDb _historyDb;
     private readonly PluginLoader _pluginLoader;
+    private readonly PathOptions _pathOptions;
+    private readonly DatabaseIntegrityValidator _dbValidator;
 
     // Last run timestamps for interval management
     private DateTime _lastVulnScan = DateTime.MinValue;
@@ -31,20 +33,36 @@ public class SentryWorker : BackgroundService
     public SentryWorker(
         ILogger<SentryWorker> logger,
         IOptions<ScanningOptions> scanOptions,
+        IOptions<PathOptions> pathOptions,
         GatewayFolderWatcher gatewayWatcher,
         ScanHistoryDb historyDb,
         PluginLoader pluginLoader)
     {
         _logger = logger;
         _scanOptions = scanOptions.Value;
+        _pathOptions = pathOptions.Value;
         _gatewayWatcher = gatewayWatcher;
         _historyDb = historyDb;
         _pluginLoader = pluginLoader;
+        _dbValidator = new DatabaseIntegrityValidator(logger);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("SentryShield service started at {Time}", DateTimeOffset.Now);
+
+        // P1 Security Hardening: DB Integrity Check
+        string appData = Environment.GetEnvironmentVariable("SENTRYSHIELD_DATA") ?? @"C:\ProgramData\SentryShield";
+        if (!_dbValidator.ValidateDatabases(
+            Path.Combine(appData, "ioc.db"), 
+            Path.Combine(appData, "vulnerability.db")))
+        {
+            _logger.LogCritical("Shutting down due to database integrity failure.");
+            Environment.Exit(1);
+        }
+
+        // P1 Security Hardening: Enforce YARA rules folder ACLs
+        EnforceYaraAcls();
 
         // Start file system watcher for gateway folder
         _gatewayWatcher.Start();
@@ -147,6 +165,44 @@ public class SentryWorker : BackgroundService
                 }
             }
 
+            bool criticalFound = findings.Any(f => f.Severity == "CRITICAL");
+            if (criticalFound)
+            {
+                var remediationPlugin = _pluginLoader.GetPlugins().FirstOrDefault(p => p.Name == "RemediationPlugin");
+                if (remediationPlugin != null)
+                {
+                    _logger.LogWarning("CRITICAL finding detected. Triggering RemediationPlugin for immediate quarantine.");
+                    try
+                    {
+                        var remParams = new Dictionary<string, object>
+                        {
+                            { "Action", "IsolateNetwork" },
+                            { "cancellationToken", ct }
+                        };
+                        var remResults = await remediationPlugin.ExecuteAsync(remParams);
+                        foreach (var result in remResults)
+                        {
+                            findings.Add(new Core.Models.Finding
+                            {
+                                Id = Guid.NewGuid().ToString(),
+                                MachineName = Environment.MachineName,
+                                FindingType = "remediation",
+                                Severity = result.Severity,
+                                Title = result.Title,
+                                Description = result.Description,
+                                AffectedComponent = result.Target,
+                                Remediation = result.Remediation,
+                                DetectionTimestamp = DateTime.UtcNow
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "RemediationPlugin failed during isolation attempt.");
+                    }
+                }
+            }
+
             if (findings.Count > 0)
             {
                 await _historyDb.SaveFindingsAsync(findings);
@@ -195,6 +251,50 @@ public class SentryWorker : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Hardening check failed");
+        }
+    }
+
+    private void EnforceYaraAcls()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        try
+        {
+            var rulesDir = _pathOptions.YaraRulesPath;
+            if (string.IsNullOrWhiteSpace(rulesDir)) return;
+            if (!Path.IsPathRooted(rulesDir))
+                rulesDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, rulesDir));
+
+            if (!Directory.Exists(rulesDir)) return;
+
+            var dInfo = new DirectoryInfo(rulesDir);
+            var security = dInfo.GetAccessControl();
+
+            // Strip inherited permissions
+            security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+
+            // Add SYSTEM and built-in Administrators
+            var systemSid = new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.LocalSystemSid, null);
+            var adminSid = new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.BuiltinAdministratorsSid, null);
+            
+            security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
+                systemSid, System.Security.AccessControl.FileSystemRights.FullControl, 
+                System.Security.AccessControl.InheritanceFlags.ContainerInherit | System.Security.AccessControl.InheritanceFlags.ObjectInherit, 
+                System.Security.AccessControl.PropagationFlags.None, 
+                System.Security.AccessControl.AccessControlType.Allow));
+
+            security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
+                adminSid, System.Security.AccessControl.FileSystemRights.FullControl, 
+                System.Security.AccessControl.InheritanceFlags.ContainerInherit | System.Security.AccessControl.InheritanceFlags.ObjectInherit, 
+                System.Security.AccessControl.PropagationFlags.None, 
+                System.Security.AccessControl.AccessControlType.Allow));
+
+            dInfo.SetAccessControl(security);
+            _logger.LogInformation("[Security] YARA rules folder locked down to SYSTEM/Administrators.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Security] Could not enforce ACLs on YARA rules directory. (Run as Administrator required)");
         }
     }
 }

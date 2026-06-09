@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Security.Cryptography;
 using SentryShield.Core.Engines;
 using SentryShield.Database;
 
@@ -122,6 +123,10 @@ public class GatewayFolderWatcher : IDisposable
 
         if (!File.Exists(filePath)) return;
 
+        // TOCTOU Prevention: Pre-scan hash
+        string preScanHash = ComputeSHA256(filePath);
+        if (string.IsNullOrEmpty(preScanHash)) return; // File became inaccessible
+
         // Infer supplier name from folder structure: Downloads\<SupplierName>\file.ext
         var supplierName = InferSupplierName(filePath);
         var fileName = Path.GetFileName(filePath);
@@ -132,6 +137,19 @@ public class GatewayFolderWatcher : IDisposable
         try
         {
             var result = await _validator.ValidateAsync(filePath, supplierName);
+
+            // TOCTOU Prevention: Post-scan hash
+            string postScanHash = ComputeSHA256(filePath);
+            if (preScanHash != postScanHash)
+            {
+                _logger.LogCritical("[Gateway] TOCTOU RACE DETECTED! File {File} was modified during validation.", filePath);
+                result.Decision = "BLOCK";
+                result.Reason = "File tampered with during validation (TOCTOU violation)";
+                result.Remediation = "1. Investigate the Gateway drop folder immediately. " +
+                                     "2. A background process attempted to overwrite the file during the scan window. " +
+                                     "3. The system has quarantined the manipulated file.";
+                result.FileHash = postScanHash;
+            }
 
             // Persist to gateway_files table
             await _db.RecordGatewayFileAsync(new Core.Models.GatewayFile
@@ -185,6 +203,20 @@ public class GatewayFolderWatcher : IDisposable
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private static string ComputeSHA256(string filePath)
+    {
+        try
+        {
+            using var sha = SHA256.Create();
+            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return BitConverter.ToString(sha.ComputeHash(fs)).Replace("-", "").ToLowerInvariant();
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
 
     private string InferSupplierName(string filePath)
     {

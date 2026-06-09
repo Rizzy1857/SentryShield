@@ -5,6 +5,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v2.5-alpha] — 2026-06-08
+
+### Added — Deep System Integrity
+- **`SentryPlugin.Firmware`** — New plugin utilizing raw kernel API calls (`GetSystemFirmwareTable`) to read the raw SMBIOS (`RSMB`) table, completely bypassing user-space WMI to thwart Ring-0 rootkits.
+- **Hardware Baselining** — Generates a SHA-256 hash of the physical firmware configuration to alert administrators of unauthorized hardware/BIOS flashes.
+- **Access Violation Safety** — Advanced `P/Invoke` implementation featuring two-pass buffer sizing and strict memory allocation safeguards (`Marshal.AllocHGlobal`) with guaranteed memory cleanup.
+
+### USB Auto-Block-Then-Scan (Zero Trust)
+- **Global Write-Protect** — Automatically manipulates `HKLM\SYSTEM\CurrentControlSet\Control\StorageDevicePolicies` to strictly write-protect all USB mass storage devices during active scans, neutralizing data exfiltration vectors.
+- **ACL Execution Lock** — Dynamically strips `ExecuteFile` permissions from the `Everyone` group at the root of the USB drive while scanning to prevent premature malware execution.
+- **Toast Notifications** — Integrated native Windows 10/11 Toast Notifications to alert users to lock-downs ("Scanning before use") and scan results ("USB Cleared" or "USB Blocked").
+
+### Security Hardening (P0 Fixes)
+- **Strict Plugin Signatures** — Removed the `SENTRYSHIELD_REQUIRE_SIGNED_PLUGINS` environment variable bypass. Authenticode signature validation is now unconditionally enforced for all dynamically loaded plugins, mitigating arbitrary code execution risks from the `Plugins/` drop folder.
+- **Dual-Hash TOCTOU Mitigation** — Replaced the single-file-lock check in `GatewayFolderWatcher.cs` with a dual-hashing architecture (pre-scan and post-scan) to detect and instantly quarantine files maliciously modified during the validation window.
+
+### Security Hardening (P1 Fixes)
+- **Python IPC Command Injection Mitigation** — Refactored `ProcessRunner.cs` to execute Python subprocesses using `ProcessStartInfo.ArgumentList`, completely encapsulating parameters and neutralizing shell metacharacter injection.
+- **Database Integrity Validation** — Implemented a boot-time `DatabaseIntegrityValidator` that hashes `vulnerability.db` and `ioc.db` and verifies them against a secured `HKEY_LOCAL_MACHINE` registry baseline. Boot fails securely if tampering is detected.
+- **YARA Rule Directory ACLs** — `SentryWorker` now proactively enforces strict `DirectorySecurity` on the YARA rules folder upon startup, stripping inherited permissions and exclusively granting `FullControl` to `SYSTEM` and `Administrators`.
+
+---
+
 ## [v2.1-stable] — 2026-06-08
 
 ### Security & Reliability Lockdown
@@ -235,13 +258,3 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 | Core Engines | 4–6 | VulnerabilityMatcher, USBMonitor, Gateway | ✅ Complete |
 | Integration + Gateway | 7–9 | IPC bridge, folder watcher, driver audit | ✅ Complete |
 | Dashboard + Testing | 10–12 | WPF UI, NUnit tests, docs | ✅ Complete |
-
-**Delivered ahead of schedule.** All 4 phases complete.
-
-### What remains before final handoff
-- [ ] Run `dotnet test` on Windows — verify all 15+11+14 = **40 NUnit tests** pass
-- [ ] Run `python init_db.py` on target machine — verify live CVE data loads from NVD + CERT-In
-- [ ] Run `pytest tests/ -v` — verify all 16 Python tests pass
-- [x] `Installer/SentryShield.wxs` — WiX 4 installer ✅
-- [x] `Tests/SentryCore.Tests/USBMonitorTests.cs` — 11 tests ✅
-- [x] `Tests/SentryCore.Tests/SupplierFileValidatorTests.cs` — 14 tests ✅

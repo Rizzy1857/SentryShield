@@ -45,7 +45,7 @@ public class USBMonitorTests
         using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={_testDbPath}");
         conn.Open();
         var cmd = conn.CreateCommand();
-        cmd.CommandText = "CREATE TABLE iocs (hash TEXT PRIMARY KEY, type TEXT, description TEXT)";
+        cmd.CommandText = "CREATE TABLE iocs (file_hash TEXT PRIMARY KEY, type TEXT, description TEXT)";
         cmd.ExecuteNonQuery();
 
         _monitor = new USBMonitor(NullLogger.Instance, _testDbPath);
@@ -184,7 +184,7 @@ public class USBMonitorTests
         using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={_testDbPath}");
         conn.Open();
         var cmd = conn.CreateCommand();
-        cmd.CommandText = "INSERT INTO iocs (hash, type, description) VALUES (@hash, 'Malware', 'Test')";
+        cmd.CommandText = "INSERT INTO iocs (file_hash, type, description) VALUES (@hash, 'Malware', 'Test')";
         cmd.Parameters.AddWithValue("@hash", hash);
         cmd.ExecuteNonQuery();
 

@@ -10,9 +10,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\SentryCore\SentryCore.csproj" />
-    <ProjectReference Include="..\..\SentryPlugin.Vulnerability\SentryPlugin.Vulnerability.csproj" />
+    <ProjectReference Include="..\..\SentryPlugin.Abstractions\SentryPlugin.Abstractions.csproj" />
     <ProjectReference Include="..\..\SentryPlugin.USB\SentryPlugin.USB.csproj" />
+    <ProjectReference Include="..\..\SentryPlugin.Vulnerability\SentryPlugin.Vulnerability.csproj" />
     <ProjectReference Include="..\..\SentryPlugin.IDS\SentryPlugin.IDS.csproj" />
+    <ProjectReference Include="..\..\SentryPlugin.Remediation\SentryPlugin.Remediation.csproj" />
     <ProjectReference Include="..\..\SentryDatabase\SentryDatabase.csproj" />
 
     <PackageReference Include="NUnit" Version="4.1.0" />
