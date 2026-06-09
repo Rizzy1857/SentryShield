@@ -119,6 +119,11 @@ class NVDFeedParser:
                 time.sleep(6 if "api_key" not in headers else 0.6)
 
             except HTTPError as e:
+                if e.code == 429:
+                    log.warning("NVD rate limit hit (HTTP 429). Waiting 35 seconds before retrying...")
+                    time.sleep(35)
+                    continue
+
                 # NVD WAF sometimes returns 404 or 403 for invalid/expired API keys
                 if e.code in (404, 403) and "api_key" in headers:
                     log.warning("NVD rejected the API key (HTTP %d). It may be expired or invalid. Falling back to unauthenticated requests...", e.code)

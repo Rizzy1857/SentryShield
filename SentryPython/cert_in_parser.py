@@ -231,8 +231,8 @@ def fetch_nvd_cve(cve_id: str, retry: int = 3) -> dict | None:
             if e.code == 404:
                 return None  # CVE doesn't exist in NVD
             if e.code == 429:
-                log.warning("NVD rate limit hit — waiting 30s...")
-                time.sleep(30)
+                log.warning("NVD rate limit hit — waiting 35s...")
+                time.sleep(35)
             else:
                 log.warning("NVD HTTP %d for %s", e.code, cve_id)
                 break
