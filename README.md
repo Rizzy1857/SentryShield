@@ -31,7 +31,6 @@ SentryShield is a Windows security monitoring tool built specifically for manufa
 ```
 SentryShield/
 ├── SentryShield.sln
-├── CHANGELOG.md
 │
 ├── SentryService/              # .NET 8 Windows Service (modern deployments)
 │   ├── SentryWorker.cs         # Background polling loop
@@ -89,12 +88,16 @@ SentryShield/
 │   ├── SentryCore.Tests/
 │   └── SentryPython/tests/
 │
-└── Docs/
-    ├── SETUP.md
+└── docs/
     ├── ARCHITECTURE.md
+    ├── CHANGELOG.md
+    ├── CONTRIBUTING.md
+    ├── PRODUCTION_PATHWAYS.md
+    ├── ROADMAP.md
+    ├── SETUP.md
     ├── WIN7_COMPAT.md    # Legacy HMI deployment guide
-    ├── idea.md
-    └── ai_strategy.md
+    ├── ai_strategy.md
+    └── idea.md
 ```
 
 ---
@@ -180,6 +183,18 @@ pytest Tests/SentryPython/tests/ -v
 
 ---
 
+## Documentation
+
+Comprehensive guides and strategic documents are located in the [`docs/`](docs/) directory:
+- [**Setup Guide**](docs/SETUP.md): Deployment and installation instructions.
+- [**Architecture**](docs/ARCHITECTURE.md): Detailed system design and component diagrams.
+- [**Production Pathways**](docs/PRODUCTION_PATHWAYS.md): Executive roadmap and future investment strategies for SentryShield.
+- [**Roadmap**](docs/ROADMAP.md): Developer roadmap detailing upcoming feature phases.
+- [**Contributing**](docs/CONTRIBUTING.md): Guidelines for developing new detection plugins.
+- [**Windows 7 Legacy Guide**](docs/WIN7_COMPAT.md): Deploying to older HMI environments.
+
+---
+
 ## Architecture
 
 ```
@@ -208,7 +223,7 @@ CERT-In ───────┤──► init_db.py / db_sync.py ──► vuln
                └──────► SentryUI (WPF Dashboard — modern only)
 ```
 
-Full architecture: `Docs/ARCHITECTURE.md`
+Full architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ---
 
@@ -234,7 +249,7 @@ msiexec /i SentryShield-v1.0-Setup.msi /qn /l*v install.log
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for the full version history.
 
 | Version | Date | Highlights |
 |---------|------|-----------|
