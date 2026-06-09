@@ -166,12 +166,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         set { _nvdApiKey = value; OnPropertyChanged(); }
     }
 
-    private string _syncLogText = "Terminal initialized...\n";
-    public string SyncLogText
-    {
-        get => _syncLogText;
-        set { _syncLogText = value; OnPropertyChanged(); }
-    }
+    public ObservableCollection<string> SyncLogs { get; } = new ObservableCollection<string> { "Terminal initialized..." };
 
     public string MachineName { get; } = Environment.MachineName;
 
@@ -385,7 +380,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         
         IsScanning = true;
         StatusMessage = "Syncing CVE Database from live NVD API (this may take a few minutes)...";
-        SyncLogText = ""; // Clear old logs
+        SyncLogs.Clear();
         try
         {
             var logger = new NullLogger();
@@ -407,12 +402,11 @@ public class DashboardViewModel : INotifyPropertyChanged
             {
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    // Keep the last 10,000 chars roughly
-                    if (SyncLogText.Length > 10000)
-                        SyncLogText = SyncLogText.Substring(0, 10000);
-                        
-                    // Prepend new lines so the newest logs stay at the top without needing auto-scroll
-                    SyncLogText = line + "\n" + SyncLogText;
+                    // Strip ANSI codes if they came through from python
+                    var cleanLine = System.Text.RegularExpressions.Regex.Replace(line, @"\x1B\[[0-9;]*m", "");
+                    
+                    SyncLogs.Insert(0, cleanLine);
+                    if (SyncLogs.Count > 500) SyncLogs.RemoveAt(SyncLogs.Count - 1);
                 });
             };
 
