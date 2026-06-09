@@ -1,4 +1,4 @@
-# SentryShield v2.1-alpha — Architecture
+# SentryShield v2.5-stable — Architecture
 
 ## Overview
 

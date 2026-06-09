@@ -7,7 +7,7 @@
 [![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%204.8-purple)]()
 [![Python](https://img.shields.io/badge/Python-3.11-yellow)]()
 [![Tests](https://img.shields.io/badge/Tests-43%20NUnit%20%7C%2016%20pytest-green)]()
-[![Version](https://img.shields.io/badge/Version-v2.1--stable-orange)]()
+[![Version](https://img.shields.io/badge/Version-v2.5--stable-orange)]()
 
 ---
 
@@ -253,7 +253,7 @@ See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for the full version history.
 
 | Version | Date | Highlights |
 |---------|------|-----------|
-| v2.1-alpha | 2026-06-08 | First v2.5 sensor integration: `IDSPlugin` network traffic monitoring |
+| v2.5-stable | 2026-06-09 | SentryShield v2.5 lockdown: full plugin architecture and security hardening |
 | v2.0-dev | 2026-06-08 | "The Great Shift" to `SentryPlugin.Abstractions`, NVD WAF fixes, dual-target support |
 | v1.1 | 2026-06-04 | Live CERT-In pipeline, `init_db.py`, WiX installer, 25 new tests |
 | v1.0 | 2026-06-03 | Initial full build — all 4 pillars, WPF dashboard, 31 tests |

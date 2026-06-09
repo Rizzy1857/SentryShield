@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [v2.5-alpha] — 2026-06-08
+## [v2.5-stable] — 2026-06-09
 
 ### Added — Deep System Integrity
 - **`SentryPlugin.Firmware`** — New plugin utilizing raw kernel API calls (`GetSystemFirmwareTable`) to read the raw SMBIOS (`RSMB`) table, completely bypassing user-space WMI to thwart Ring-0 rootkits.
