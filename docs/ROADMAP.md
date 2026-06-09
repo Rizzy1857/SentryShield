@@ -42,6 +42,8 @@ This document outlines the strategic vision and upcoming milestones for the Sent
   - If Node A detects a malicious USB, it gossips the hash to Node B and Node C. If the same USB is inserted into Node B, it is instantly blocked based on Node A's findings.
 - **Automated Air-Gap Bridging:**
   - "Sneakernet" sync: Allow authorized operators to export the threat mesh DB to a secure USB, walk it to a completely disconnected subnet, and ingest it to update that subnet's mesh.
+- **Expanded Data Sources:**
+  - Integrate a CISA ICS-CERT parser to capture Toyopuc (JTEKT) and other proprietary PLC vulnerabilities where NVD coverage is thin.
 
 ---
 

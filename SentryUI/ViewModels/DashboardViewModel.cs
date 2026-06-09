@@ -152,6 +152,20 @@ public class DashboardViewModel : INotifyPropertyChanged
         set { _lastScanText = value; OnPropertyChanged(); }
     }
 
+    private string _lastDriverScanText = "Never";
+    public string LastDriverScanText
+    {
+        get => _lastDriverScanText;
+        set { _lastDriverScanText = value; OnPropertyChanged(); }
+    }
+
+    private string _lastHardeningScanText = "Never";
+    public string LastHardeningScanText
+    {
+        get => _lastHardeningScanText;
+        set { _lastHardeningScanText = value; OnPropertyChanged(); }
+    }
+
     private string _nextScanText = "Next scan: Nightly (06:00)";
     public string NextScanText
     {
@@ -214,6 +228,8 @@ public class DashboardViewModel : INotifyPropertyChanged
                 var gatewayFiles = _db.GetRecentGatewayFiles(50);
 
                 var lastVuln = _db.GetLastScanTime("vulnerability");
+                var lastDriver = _db.GetLastScanTime("driver");
+                var lastHardening = _db.GetLastScanTime("hardening");
                 var vulnCount = _vulnDb?.GetTotalCount() ?? 0;
 
                 Application.Current?.Dispatcher.Invoke(() =>
@@ -229,6 +245,14 @@ public class DashboardViewModel : INotifyPropertyChanged
                     LastScanText = lastVuln.HasValue
                         ? $"Last scan: {lastVuln.Value.ToLocalTime():MM/dd HH:mm}"
                         : "Last scan: Never";
+
+                    LastDriverScanText = lastDriver.HasValue
+                        ? $"{lastDriver.Value.ToLocalTime():MM/dd HH:mm}"
+                        : "Never";
+
+                    LastHardeningScanText = lastHardening.HasValue
+                        ? $"{lastHardening.Value.ToLocalTime():MM/dd HH:mm}"
+                        : "Never";
 
                     OnPropertyChanged(nameof(StatusColor));
                     OnPropertyChanged(nameof(StatusText));

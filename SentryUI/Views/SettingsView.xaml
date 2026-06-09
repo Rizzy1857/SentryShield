@@ -56,21 +56,29 @@
                                    Text="Driver Audit Interval"
                                    VerticalAlignment="Center"
                                    Foreground="{StaticResource BrushTextSecondary}"/>
-                        <ComboBox Grid.Row="1" Grid.Column="1"
-                                  Width="180" HorizontalAlignment="Left">
-                            <ComboBoxItem Content="Daily (24h)" IsSelected="True"/>
-                            <ComboBoxItem Content="Weekly"/>
-                        </ComboBox>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                            <ComboBox Width="180" HorizontalAlignment="Left">
+                                <ComboBoxItem Content="Daily (24h)" IsSelected="True"/>
+                                <ComboBoxItem Content="Weekly"/>
+                            </ComboBox>
+                            <TextBlock Text="{Binding LastDriverScanText, StringFormat='Last scan: {0}'}" 
+                                       VerticalAlignment="Center" Margin="16,0,0,0" 
+                                       Foreground="{StaticResource BrushTextMuted}"/>
+                        </StackPanel>
 
                         <TextBlock Grid.Row="2" Grid.Column="0"
                                    Text="Hardening Check Interval"
                                    VerticalAlignment="Center"
                                    Foreground="{StaticResource BrushTextSecondary}"/>
-                        <ComboBox Grid.Row="2" Grid.Column="1"
-                                  Width="180" HorizontalAlignment="Left">
-                            <ComboBoxItem Content="Daily (24h)" IsSelected="True"/>
-                            <ComboBoxItem Content="Weekly"/>
-                        </ComboBox>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+                            <ComboBox Width="180" HorizontalAlignment="Left">
+                                <ComboBoxItem Content="Daily (24h)" IsSelected="True"/>
+                                <ComboBoxItem Content="Weekly"/>
+                            </ComboBox>
+                            <TextBlock Text="{Binding LastHardeningScanText, StringFormat='Last scan: {0}'}" 
+                                       VerticalAlignment="Center" Margin="16,0,0,0" 
+                                       Foreground="{StaticResource BrushTextMuted}"/>
+                        </StackPanel>
                     </Grid>
                 </StackPanel>
             </Border>

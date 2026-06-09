@@ -278,8 +278,8 @@ def main():
         help="Path to SQLite database (created if not exists)"
     )
     parser.add_argument(
-        "--days-back", type=int, default=365,
-        help="How far back to pull CVEs (default: 365 days = ~1 year of data)"
+        "--days-back", type=int, default=730,
+        help="How far back to pull CVEs (default: 730 days = ~2 years of data)"
     )
     parser.add_argument(
         "--nvd-key",

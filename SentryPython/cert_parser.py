@@ -54,10 +54,19 @@ NVD_API_KEY = os.environ.get("NVD_API_KEY", "").strip()
 
 # Manufacturing-relevant product keywords for targeted NVD queries
 MANUFACTURING_KEYWORDS = [
-    "SCADA", "HMI", "PLC", "Siemens", "Wonderware", "iFIX",
-    "Rockwell", "Allen-Bradley", "Schneider", "Modbus",
-    "OPC", "WinCC", "FactoryTalk", "log4j", "Apache",
-    "OpenSSL", "Windows", "Remote Desktop"
+    # Siemens
+    "Siemens S7", "Siemens WinCC", "Siemens TIA Portal", "SIMATIC",
+    "Siemens STEP 7",
+    # Mitsubishi
+    "Mitsubishi MELSEC", "Mitsubishi GOT", "Mitsubishi iQ",
+    # Toyopuc
+    "Toyopuc", "JTEKT PLC",
+    # Windows Embedded (gear grinding + tester machines)
+    "Windows Embedded", "Windows CE", "WES7",
+    # High-impact universal CVEs relevant to any Windows OT machine
+    "Log4j", "EternalBlue", "BlueKeep", "PrintNightmare",
+    # Common OT protocols and software
+    "Modbus", "OPC UA", "PROFINET"
 ]
 
 
@@ -92,6 +101,7 @@ class NVDFeedParser:
 
         while True:
             params = f"?resultsPerPage={results_per_page}&startIndex={start_index}"
+            params += "&cvssV3Severity=HIGH,CRITICAL"
             if keyword:
                 encoded_keyword = urllib.parse.quote(keyword)
                 params += f"&keywordSearch={encoded_keyword}"

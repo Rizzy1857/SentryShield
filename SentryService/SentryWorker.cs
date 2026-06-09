@@ -226,12 +226,21 @@ public class SentryWorker : BackgroundService
 
     private async Task RunDriverAuditAsync(CancellationToken ct)
     {
+        var startTime = DateTime.UtcNow;
         try
         {
             var auditor = new DriverAuditor(_logger);
             var findings = await auditor.AuditAsync();
             await _historyDb.SaveFindingsAsync(findings);
-            _logger.LogInformation("Driver audit complete: {Count} findings", findings.Count);
+            
+            var elapsed = (int)(DateTime.UtcNow - startTime).TotalSeconds;
+            await _historyDb.RecordScanAsync("driver", findings.Count,
+                findings.Count(f => f.Severity == "CRITICAL"),
+                findings.Count(f => f.Severity == "HIGH"),
+                findings.Count(f => f.Severity == "MEDIUM"),
+                elapsed);
+
+            _logger.LogInformation("Driver audit complete: {Count} findings in {Elapsed}s", findings.Count, elapsed);
         }
         catch (Exception ex)
         {
@@ -241,12 +250,21 @@ public class SentryWorker : BackgroundService
 
     private async Task RunHardeningCheckAsync(CancellationToken ct)
     {
+        var startTime = DateTime.UtcNow;
         try
         {
             var audit = new HardeningAudit(_logger);
             var findings = await audit.CheckAsync();
             await _historyDb.SaveFindingsAsync(findings);
-            _logger.LogInformation("Hardening check complete: {Count} findings", findings.Count);
+            
+            var elapsed = (int)(DateTime.UtcNow - startTime).TotalSeconds;
+            await _historyDb.RecordScanAsync("hardening", findings.Count,
+                findings.Count(f => f.Severity == "CRITICAL"),
+                findings.Count(f => f.Severity == "HIGH"),
+                findings.Count(f => f.Severity == "MEDIUM"),
+                elapsed);
+
+            _logger.LogInformation("Hardening check complete: {Count} findings in {Elapsed}s", findings.Count, elapsed);
         }
         catch (Exception ex)
         {

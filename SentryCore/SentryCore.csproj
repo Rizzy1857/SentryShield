@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- net8.0-windows: modern deployments (Win10/11, Server 2019+) -->
+    <!-- net48: legacy HMI/SCADA machines (Win7, WES7, WE8.1)       -->
+    <TargetFrameworks>net10.0-windows;net48</TargetFrameworks>
+    <!-- Allow modern C# syntax (records, switch expressions, file-scoped namespaces)
+         against the .NET 4.8 BCL. Language version is independent of TFM. -->
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>SentryShield.Core</RootNamespace>
+    <AssemblyName>SentryCore</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SentryDatabase\SentryDatabase.csproj" />
+    <ProjectReference Include="..\SentryPlugin.Abstractions\SentryPlugin.Abstractions.csproj" />
+
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+
+  <!-- System.Diagnostics.EventLog: NuGet package on net8; inbox on net48 via System.ServiceProcess -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
+    <PackageReference Include="System.Management" Version="8.0.0" />
+    <PackageReference Include="System.Diagnostics.EventLog" Version="8.0.0" />
+  </ItemGroup>
+
+  <!-- net48: System.Management and EventLog are inbox — reference the inbox assemblies -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Management" />
+    <Reference Include="System.ServiceProcess" />
+    <PackageReference Include="System.Text.Json" Version="9.0.0" Condition="'$(TargetFramework)' == 'net48'" />
+  </ItemGroup>
+
+</Project>
