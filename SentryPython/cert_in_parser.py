@@ -1,5 +1,5 @@
 """
-SentryShield v1.0 — CERT-In Advisory Parser (cert_in_parser.py)
+SentryShield v2.5 — CERT-In Advisory Parser (cert_in_parser.py)
 
 Fetches live vulnerability advisories from India's CERT-In:
   https://www.cert-in.org.in/
@@ -35,13 +35,14 @@ import re
 import sqlite3
 import sys
 import time
-import ssl
+import http.client
 from datetime import datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import quote
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode, quote
 from urllib.request import Request, urlopen
+import ssl
 from xml.etree import ElementTree
 
 logging.basicConfig(
@@ -71,6 +72,33 @@ CVE_PATTERN = re.compile(r"CVE-\d{4}-\d{4,7}", re.IGNORECASE)
 CIVN_PATTERN = re.compile(r"CIVN-\d{4}-\d{4}", re.IGNORECASE)
 
 
+def verify_nvd_key():
+    nvd_key = os.environ.get("NVD_API_KEY", "").strip()
+    if not nvd_key:
+        log.warning("[NVD] WARNING: No API key set — rate limited to 5 req/30s")
+        return
+
+    log.info("[NVD] Verifying API key...")
+    headers = {"User-Agent": "SentryShield/1.0", "apiKey": nvd_key}
+    try:
+        ctx = ssl._create_unverified_context() if sys.platform == "darwin" else None
+        conn = http.client.HTTPSConnection("services.nvd.nist.gov", context=ctx, timeout=30)
+        conn.request("GET", "/rest/json/cves/2.0?resultsPerPage=1", headers=headers)
+        resp = conn.getresponse()
+        resp.read()
+        
+        if resp.status in (403, 404):
+            raise Exception("NVD API key rejected (NIST returns 404/403 for invalid keys) — please verify your key or clear the NVD_API_KEY variable")
+        elif resp.status != 200:
+            log.warning(f"[NVD] API key verification failed: HTTP {resp.status}")
+        else:
+            log.info("[NVD] API key verified")
+        conn.close()
+    except Exception as e:
+        if "rejected" in str(e): raise
+        log.warning(f"[NVD] API key verification failed: {e}")
+
+
 # ---------------------------------------------------------------------------
 # CERT-In RSS parser
 # ---------------------------------------------------------------------------
@@ -86,7 +114,6 @@ class CERTInRSSParser:
             channel = root.find("channel")
             if channel is None:
                 # Try with namespace
-                ns = {"": "http://www.w3.org/2005/Atom"}
                 items = root.findall(".//item") or root.findall(".//entry")
             else:
                 items = channel.findall("item")
@@ -208,42 +235,50 @@ def fetch_nvd_cve(cve_id: str, retry: int = 3) -> dict | None:
     Fetch a single CVE's full record from NVD API.
     Returns the parsed CVE dict or None on failure.
     """
+    nvd_key = os.environ.get("NVD_API_KEY", "").strip()
     headers = {"User-Agent": "SentryShield/1.0 (Security Scanner)"}
-    if NVD_API_KEY:
-        headers["apiKey"] = NVD_API_KEY
+    if nvd_key:
+        headers["apiKey"] = nvd_key
 
     url = f"{NVD_CVE_URL}?cveId={cve_id}"
 
     for attempt in range(retry):
         try:
-            req = Request(url, headers=headers)
-            ctx = ssl._create_unverified_context()
-            with urlopen(req, timeout=20, context=ctx) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-
-            vulns = data.get("vulnerabilities", [])
-            if not vulns:
-                return None
-
-            return vulns[0].get("cve", {})
-
-        except HTTPError as e:
-            if e.code == 404:
-                return None  # CVE doesn't exist in NVD
-            if e.code == 429:
-                log.warning("NVD rate limit hit — waiting 35s...")
-                time.sleep(35)
-            else:
-                log.warning("NVD HTTP %d for %s", e.code, cve_id)
-                break
-        except URLError as e:
-            log.warning("NVD connection error for %s: %s", cve_id, e.reason)
-            break
+            ctx = ssl._create_unverified_context() if sys.platform == "darwin" else None
+            conn = http.client.HTTPSConnection("services.nvd.nist.gov", context=ctx, timeout=20)
+            conn.request("GET", f"/rest/json/cves/2.0?cveId={cve_id}", headers=headers)
+            resp = conn.getresponse()
+            body = resp.read().decode("utf-8")
+            code = resp.status
+            conn.close()
         except Exception as e:
             log.warning("NVD fetch error for %s: %s", cve_id, e)
             break
 
-        time.sleep(2 ** attempt)  # Exponential backoff
+        if code == 200:
+            data = json.loads(body)
+            vulns = data.get("vulnerabilities", [])
+            if not vulns:
+                return None
+            return vulns[0].get("cve", {})
+
+        if code == 403 or (code == 404 and "cveId=" not in url):
+            raise Exception("NVD API key rejected (NIST returned 404/403) — verify your key or clear NVD_API_KEY")
+        if code == 404:
+            log.error("NVD HTTP 404 Not Found for %s", url)
+            return None  # CVE doesn't exist in NVD
+        if code == 429:
+            if attempt < retry - 1:
+                wait_time = 6 * (2 ** attempt)
+                log.warning("NVD rate limit hit (HTTP 429). Waiting %ds before retrying...", wait_time)
+                time.sleep(wait_time)
+                continue
+            else:
+                log.error("NVD HTTP error: 429 Too Many Requests (max retries reached)")
+                break
+        else:
+            log.warning("NVD HTTP %d for %s", code, cve_id)
+            break
 
     return None
 
@@ -394,7 +429,7 @@ class CERTInParser:
                 log.debug("  %s already in DB — skipped", cve_id)
 
             # NVD rate limit: 5 req/30s without key, 50 req/30s with key
-            time.sleep(0.8 if NVD_API_KEY else 6.5)
+            time.sleep(1.0 if os.environ.get("NVD_API_KEY", "").strip() else 6.5)
 
         elapsed = (datetime.utcnow() - start).total_seconds()
         summary = {
@@ -428,7 +463,7 @@ class CERTInParser:
             record = nvd_cve_to_record(cve_data, civn_id=civn_id)
             if record and self._insert_record(record):
                 inserted += 1
-            time.sleep(0.8 if NVD_API_KEY else 6.5)
+            time.sleep(1.0 if os.environ.get("NVD_API_KEY", "").strip() else 6.5)
 
         return inserted
 
@@ -599,6 +634,8 @@ def main():
     parser.add_argument("--json-output", action="store_true", help="Output summary as JSON")
 
     args = parser.parse_args()
+
+    verify_nvd_key()
 
     if not Path(args.db).exists():
         log.error("Database not found: %s — run init_db.py first", args.db)

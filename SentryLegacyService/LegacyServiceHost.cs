@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using SentryShield.Core.Models;
 using System.ServiceProcess;
 using System.Threading;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -37,6 +38,22 @@ internal sealed class LegacyServiceHost : ServiceBase
     private readonly PluginLoader    _pluginLoader;
     private readonly EventLogWriter  _eventLog;
     private readonly LegacyYaraGuard _yaraGuard;
+
+    [DllImport("wtsapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool WTSSendMessage(
+        IntPtr hServer,
+        int SessionId,
+        string pTitle,
+        int TitleLength,
+        string pMessage,
+        int MessageLength,
+        int Style,
+        int Timeout,
+        out int pResponse,
+        bool bWait);
+
+    [DllImport("kernel32.dll")]
+    private static extern int WTSGetActiveConsoleSessionId();
 
     private Timer?   _timer;
     private DateTime _lastVulnScan      = DateTime.MinValue;
@@ -72,6 +89,8 @@ internal sealed class LegacyServiceHost : ServiceBase
     {
         _eventLog.WriteInfo("SentryShield legacy service starting.", eventId: 1000);
         _logger.LogInformation("SentryShield legacy service starting at {Time}", DateTime.Now);
+
+        ThreadPool.QueueUserWorkItem(_ => NotifyLegacyUserAsync().GetAwaiter().GetResult());
 
         // Probe Python availability once before starting the timer
         _yaraGuard.Probe();
@@ -138,6 +157,37 @@ internal sealed class LegacyServiceHost : ServiceBase
     // Individual scan runners (mirror SentryWorker logic)
     // -------------------------------------------------------------------------
 
+    private async System.Threading.Tasks.Task NotifyLegacyUserAsync()
+    {
+        try
+        {
+            string title = "SentryShield Security Alert";
+            string message = "WARNING: This machine is running a legacy operating system.\nPlease update to a modern OS to ensure security.";
+            int sessionId = WTSGetActiveConsoleSessionId();
+            
+            // 0x30 = MB_ICONEXCLAMATION (Warning icon)
+            WTSSendMessage(IntPtr.Zero, sessionId, title, title.Length * 2, message, message.Length * 2, 0x30, 0, out _, true);
+
+            var finding = new Core.Models.Finding
+            {
+                FindingType = "hardening",
+                Severity = "CRITICAL",
+                Title = "Legacy Operating System Detected",
+                Description = message,
+                AffectedComponent = Environment.OSVersion.VersionString,
+                Remediation = "Upgrade to Windows 10/11 IoT Enterprise.",
+                DetectionTimestamp = DateTime.UtcNow
+            };
+
+            await _historyDb.SaveFindingsAsync(new List<Core.Models.Finding> { finding });
+            _logger.LogWarning("Legacy OS notification sent and finding logged.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to notify legacy user");
+        }
+    }
+
     private async System.Threading.Tasks.Task RunPluginsAsync()
     {
         var start = DateTime.UtcNow;
@@ -189,19 +239,37 @@ internal sealed class LegacyServiceHost : ServiceBase
 
     private async System.Threading.Tasks.Task RunDriverAuditAsync()
     {
+        var startTime = DateTime.UtcNow;
         _logger.LogInformation("Starting driver audit...");
         var auditor  = new DriverAuditor(_logger);
         var findings = await auditor.AuditAsync();
         await _historyDb.SaveFindingsAsync(findings);
-        _logger.LogInformation("Driver audit complete: {Count} findings", findings.Count);
+
+        var elapsed = (int)(DateTime.UtcNow - startTime).TotalSeconds;
+        await _historyDb.RecordScanAsync("driver", findings.Count,
+            findings.Count(f => f.Severity == "CRITICAL"),
+            findings.Count(f => f.Severity == "HIGH"),
+            findings.Count(f => f.Severity == "MEDIUM"),
+            elapsed);
+
+        _logger.LogInformation("Driver audit complete: {Count} findings in {Elapsed}s", findings.Count, elapsed);
     }
 
     private async System.Threading.Tasks.Task RunHardeningCheckAsync()
     {
+        var startTime = DateTime.UtcNow;
         _logger.LogInformation("Starting hardening check...");
         var audit    = new HardeningAudit(_logger);
         var findings = await audit.CheckAsync();
         await _historyDb.SaveFindingsAsync(findings);
-        _logger.LogInformation("Hardening check complete: {Count} findings", findings.Count);
+
+        var elapsed = (int)(DateTime.UtcNow - startTime).TotalSeconds;
+        await _historyDb.RecordScanAsync("hardening", findings.Count,
+            findings.Count(f => f.Severity == "CRITICAL"),
+            findings.Count(f => f.Severity == "HIGH"),
+            findings.Count(f => f.Severity == "MEDIUM"),
+            elapsed);
+
+        _logger.LogInformation("Hardening check complete: {Count} findings in {Elapsed}s", findings.Count, elapsed);
     }
 }

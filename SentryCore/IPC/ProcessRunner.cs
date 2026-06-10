@@ -75,10 +75,8 @@ public class ProcessRunner
         var script = Path.Combine(_pythonScriptsPath, "init_db.py");
         // Use -u to force unbuffered stdout/stderr so the WPF UI receives logs in real-time
         var args = $"-u \"{script}\" --db \"{dbPath}\" --days-back 30";
-        if (!string.IsNullOrWhiteSpace(nvdKey))
-        {
-            args += $" --nvd-key \"{nvdKey}\"";
-        }
+        // Always pass --nvd-key to override any system environment variables if the user cleared it in the UI
+        args += $" --nvd-key \"{nvdKey ?? ""}\"";
         return await RunPythonAsync(args, 300_000, onOutputData); // Allow 5 minutes for massive NVD sync
     }
 

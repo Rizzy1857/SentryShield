@@ -49,6 +49,7 @@ public class DashboardViewModel : INotifyPropertyChanged
         AcknowledgeCommand = new RelayCommand<Finding>(AcknowledgeFinding);
         SyncDatabaseCommand = new RelayCommand(async () => await SyncDatabaseAsync(), () => IsNotScanning);
         OpenDbFolderCommand = new RelayCommand(OpenDbFolder);
+        CopyLogsCommand = new RelayCommand(CopyLogs);
 
         // Initial data load
         _ = RefreshAsync();
@@ -204,6 +205,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public ICommand AcknowledgeCommand { get; }
     public ICommand SyncDatabaseCommand { get; }
     public ICommand OpenDbFolderCommand { get; }
+    public ICommand CopyLogsCommand { get; }
 
     // -------------------------------------------------------------------------
     // Data operations
@@ -465,6 +467,21 @@ public class DashboardViewModel : INotifyPropertyChanged
                 FileName = dir,
                 UseShellExecute = true
             });
+        }
+    }
+
+    private void CopyLogs()
+    {
+        if (ScanLogs.Count == 0) return;
+        try
+        {
+            var text = string.Join(Environment.NewLine, ScanLogs);
+            Clipboard.SetText(text);
+            StatusMessage = "Logs copied to clipboard.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Failed to copy logs: {ex.Message}";
         }
     }
 

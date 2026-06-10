@@ -94,6 +94,8 @@ public class ProcessRunner
     /// </summary>
     private async Task<string> RunPythonAsync(IEnumerable<string> args, int timeoutMs = 120_000)
     {
+        var scriptName = Path.GetFileName(args.FirstOrDefault() ?? "unknown");
+
         var psi = new ProcessStartInfo
         {
             FileName = _pathOptions.PythonExe,
@@ -138,19 +140,21 @@ public class ProcessRunner
         {
             process.Kill(entireProcessTree: true);
             _logger.LogError("[IPC] Python process timed out after {Timeout}ms — killed", timeoutMs);
-            return string.Empty;
+            throw new TimeoutException($"[ProcessRunner] Python process '{scriptName}' timed out after {timeoutMs}ms and was killed.");
         }
 
         if (process.ExitCode != 0)
         {
-            _logger.LogWarning("[IPC] Python exited with code {Code}: {Stderr}",
-                process.ExitCode, stderrBuilder.ToString().Trim());
+            var stderr = stderrBuilder.ToString().Trim();
+            _logger.LogWarning("[IPC] Python exited with code {Code}: {Stderr}", process.ExitCode, stderr);
+            throw new InvalidOperationException($"[ProcessRunner] Python process exited with code {process.ExitCode}. Stderr: {stderr}");
         }
         else if (stderrBuilder.Length > 0)
         {
             _logger.LogDebug("[IPC] Python stderr: {Stderr}", stderrBuilder.ToString().Trim());
         }
 
-        return stdoutBuilder.ToString().Trim();
+        var stdout = stdoutBuilder.ToString().Trim();
+        return string.IsNullOrEmpty(stdout) ? "[]" : stdout;
     }
 }

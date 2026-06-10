@@ -29,11 +29,9 @@ import argparse
 import ssl
 import urllib.parse
 import logging
-import argparse
+import http.client
 from datetime import datetime, timedelta
 from pathlib import Path
-from urllib.request import urlopen, Request
-from urllib.error import URLError, HTTPError
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,9 +39,6 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 log = logging.getLogger("cert_parser")
-
-# Bypass macOS missing root certificates for urllib
-ssl._create_default_https_context = ssl._create_unverified_context
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -68,6 +63,34 @@ MANUFACTURING_KEYWORDS = [
     # Common OT protocols and software
     "Modbus", "OPC UA", "PROFINET"
 ]
+
+
+def verify_nvd_key():
+    nvd_key = os.environ.get("NVD_API_KEY", "").strip()
+    if not nvd_key:
+        log.warning("[NVD] WARNING: No API key set — rate limited to 5 req/30s")
+        return
+
+    log.info("[NVD] Verifying API key...")
+    headers = {"User-Agent": "SentryShield/1.0", "apiKey": nvd_key}
+    url = f"{NVD_BASE_URL}?resultsPerPage=1"
+    try:
+        ctx = ssl._create_unverified_context() if sys.platform == "darwin" else None
+        conn = http.client.HTTPSConnection("services.nvd.nist.gov", context=ctx, timeout=30)
+        conn.request("GET", "/rest/json/cves/2.0?resultsPerPage=1", headers=headers)
+        resp = conn.getresponse()
+        resp.read() # consume body
+        
+        if resp.status in (403, 404):
+            raise Exception("NVD API key rejected (NIST returns 404/403 for invalid keys) — please verify your key or clear the NVD_API_KEY variable")
+        elif resp.status != 200:
+            log.warning(f"[NVD] API key verification failed: HTTP {resp.status}")
+        else:
+            log.info("[NVD] API key verified")
+        conn.close()
+    except Exception as e:
+        if "rejected" in str(e): raise
+        log.warning(f"[NVD] API key verification failed: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -96,12 +119,12 @@ class NVDFeedParser:
         start_index = 0
 
         headers = {"User-Agent": "SentryShield/1.0 (security scanner; contact: admin@sentryshield.local)"}
-        if NVD_API_KEY:
-            headers["api_key"] = NVD_API_KEY
+        nvd_key = os.environ.get("NVD_API_KEY", "").strip()
+        if nvd_key:
+            headers["apiKey"] = nvd_key
 
         while True:
             params = f"?resultsPerPage={results_per_page}&startIndex={start_index}"
-            params += "&cvssV3Severity=HIGH,CRITICAL"
             if keyword:
                 encoded_keyword = urllib.parse.quote(keyword)
                 params += f"&keywordSearch={encoded_keyword}"
@@ -109,45 +132,53 @@ class NVDFeedParser:
             url = NVD_BASE_URL + params
             log.info("Fetching NVD: %s", url)
 
-            try:
-                req = Request(url, headers=headers)
-                with urlopen(req, context=ssl._create_unverified_context() if sys.platform == "darwin" else None, timeout=30) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
+            data = None
+            for attempt in range(3):
+                try:
+                    ctx = ssl._create_unverified_context() if sys.platform == "darwin" else None
+                    conn = http.client.HTTPSConnection("services.nvd.nist.gov", context=ctx, timeout=30)
+                    conn.request("GET", "/rest/json/cves/2.0" + params, headers=headers)
+                    resp = conn.getresponse()
+                    body = resp.read().decode("utf-8")
+                    code = resp.status
+                    reason = resp.reason
+                    conn.close()
+                except Exception as e:
+                    log.error("NVD fetch error: %s", e)
+                    raise
 
-                vulnerabilities = data.get("vulnerabilities", [])
-                cves.extend(vulnerabilities)
-
-                total = data.get("totalResults", 0)
-                log.info("Got %d/%d CVEs (offset=%d)", len(cves), total, start_index)
-
-                # Pagination
-                start_index += results_per_page
-                if start_index >= total:
+                if code == 200:
+                    data = json.loads(body)
                     break
-
-                # NVD rate limit: wait 6s between requests (without API key)
-                time.sleep(6 if "api_key" not in headers else 0.6)
-
-            except HTTPError as e:
-                if e.code == 429:
-                    log.warning("NVD rate limit hit (HTTP 429). Waiting 35 seconds before retrying...")
-                    time.sleep(35)
-                    continue
-
-                # NVD WAF sometimes returns 404 or 403 for invalid/expired API keys
-                if e.code in (404, 403) and "api_key" in headers:
-                    log.warning("NVD rejected the API key (HTTP %d). It may be expired or invalid. Falling back to unauthenticated requests...", e.code)
-                    del headers["api_key"]
-                    continue # Retry the exact same URL without the API key
+                    
+                if code in (403, 404):
+                    raise Exception("NVD API key rejected (NIST returned 404/403) — verify your key or clear NVD_API_KEY")
+                if code == 429:
+                    if attempt < 2:
+                        wait_time = 6 * (2 ** attempt)
+                        log.warning("NVD rate limit hit (HTTP 429). Waiting %d seconds before retrying...", wait_time)
+                        time.sleep(wait_time)
+                        continue
                 
-                log.error("NVD HTTP error: %d %s", e.code, e.reason)
+                log.error("NVD HTTP error: %d %s", code, reason)
+                raise Exception(f"HTTP {code}")
+
+            if not data:
                 break
-            except URLError as e:
-                log.error("NVD connection error: %s", e.reason)
+
+            vulnerabilities = data.get("vulnerabilities", [])
+            cves.extend(vulnerabilities)
+
+            total = data.get("totalResults", 0)
+            log.info("Got %d/%d CVEs (offset=%d)", len(cves), total, start_index)
+
+            # Pagination
+            start_index += results_per_page
+            if start_index >= total:
                 break
-            except Exception as e:
-                log.error("NVD fetch error: %s", e)
-                break
+
+            # NVD rate limit: wait 6.5s without API key, 1.0s with key to avoid jitter
+            time.sleep(6.5 if "apiKey" not in headers else 1.0)
 
         return cves
 
@@ -188,6 +219,8 @@ class NVDFeedParser:
 
             # Severity from CVSS
             severity = _cvss_to_severity(cvss_score)
+            if severity not in ("HIGH", "CRITICAL"):
+                return None
 
             # Affected product from configurations (first CPE match)
             product_name = _extract_product_name(cve)
@@ -451,6 +484,7 @@ def main():
 
     args = parser.parse_args()
 
+    verify_nvd_key()
     feed = NVDFeedParser(args.db)
 
     if args.stats:

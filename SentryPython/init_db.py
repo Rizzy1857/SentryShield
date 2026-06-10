@@ -196,11 +196,16 @@ def run_nvd_sync(db_path: str, days_back: int, nvd_key: str = "") -> int:
     """Pull manufacturing-relevant CVEs from NVD API."""
     if nvd_key:
         os.environ["NVD_API_KEY"] = nvd_key
+    else:
+        # If explicitly passed as empty, clear the env var so cert_parser doesn't use it
+        if "NVD_API_KEY" in os.environ:
+            del os.environ["NVD_API_KEY"]
 
     # Import here so NVD_API_KEY env var is set first
     script_dir = Path(__file__).parent
     sys.path.insert(0, str(script_dir))
-    from cert_parser import NVDFeedParser, MANUFACTURING_KEYWORDS
+    from cert_parser import NVDFeedParser, MANUFACTURING_KEYWORDS, verify_nvd_key
+    verify_nvd_key()
 
     parser = NVDFeedParser(db_path)
     try:
