@@ -31,19 +31,19 @@ This path focuses entirely on stabilization. It assumes zero new feature develop
 ## Path 2 — Strategic Growth
 **The Connected Factory Strategy**
 
-This path elevates SentryShield from an isolated endpoint tool to a networked, intelligent ecosystem within a single plant or regional cluster. It introduces the `v3.0` feature set without requiring a massive enterprise overhaul.
+This path elevates SentryShield from an isolated endpoint tool to a networked, intelligent ecosystem within a single plant or regional cluster. It introduces the `v3.0` feature set by building a realistic, stable bridge from the MVP without adopting the massive complexity of true Distributed Systems.
 
 * **Investment Level**: 3-4 FTEs (1 Architect, 2 Software Engineers, 1 SecOps Analyst), 6-9 Months, ~$150k–$250k.
 * **What Gets Built or Hardened**:
-  * **Resilient Star-Mesh Architecture**: Deploying a Centralized Management Console (CMC) as a "Star Node" acting as the authoritative source for intelligence. Integrating an mDNS/UDP local broadcast fallback allowing nodes to automatically locate surviving peers and sync data during severed network links.
-  * **Centralized Management Console (CMC)**: A lightweight, on-premise dashboard for Shift Supervisors to push unified policies, YARA rules, and view the health of the entire factory node mesh.
-  * **Monotonic Sequence Validation**: Enforcing strict Monotonic Sequence Numbers (e.g., `Intelligence_v1042`) accompanied by cryptographic signatures to safely reconcile decentralized threat intelligence without relying on unpredictable ICS network clocks.
+  * **Hub-and-Spoke (UDP Push) Architecture**: Deploying a Centralized Management Console (CMC) as the absolute source of truth. The Star Node periodically pushes lightweight UDP broadcast announcements to all Edge apps, which keep a dedicated port open for authenticated listening, followed by secure TCP pulls for database updates.
+  * **Lean Edge Nodes**: By centralizing the authority, we completely eliminate the need for Conflict-free Replicated Data Types (CRDTs), complex peer-to-peer mDNS routing tables, and heavy mTLS PKI management on the endpoints.
+  * **Monotonic Sequence Validation**: Enforcing strict Monotonic Sequence Numbers (e.g., `Intelligence_v1042`) accompanied by cryptographic signatures to verify the Star Node's UDP announcements and prevent downgrade attacks without relying on ICS network clocks.
 * **What it looks like to a Plant Operator**: 
-  * The Shift Supervisor uses the CMC to monitor factory floor endpoint health. 
-  * If a rogue firmware update is blocked on Line 1, the CMC instantly pushes the IOC to Line 2. If the CMC goes offline, Line 1 gossips the hash directly to Line 2 via the Star-Mesh fallback. The system remains strictly resilient.
+  * The Shift Supervisor uses the CMC to push unified policies and YARA rules to the entire factory floor instantly. 
+  * Endpoints silently listen for UDP broadcasts and automatically sync the latest threat intelligence locally.
 * **Key Risks**:
-  * **Network Noise**: Gossip protocols in noisy OT environments require careful tuning to prevent network storms.
-  * **Authentication**: Securing P2P communication requires mTLS, which introduces the heavy burden of managing PKI (Public Key Infrastructure) and certificate rotation in an air-gapped environment.
+  * **Single Point of Failure (SPOF)**: If the central WES 10/11 Star Node device crashes, the entire factory stops receiving updates since there is no P2P mesh fallback.
+  * **UDP Reliability**: Because UDP does not guarantee packet delivery, standard factory network noise could cause an Edge App to silently miss a critical update without ever knowing it, necessitating careful heartbeat/retry logic.
 * **Next Decision Point**: Move to Path 3 when Toyota mandates active, automated threat mitigation (e.g., killing processes remotely) or integration with global, multi-national Security Operations Centers.
 
 ---
@@ -72,8 +72,8 @@ This path scales SentryShield into a tier-1, enterprise-grade OT security platfo
 
 | Metric | Path 1: MVP | Path 2: Strategic Growth | Path 3: Full Platform |
 | :--- | :--- | :--- | :--- |
-| **Focus** | Stabilization & Deployment | Local Connectivity & Automation | Global Scale & Active Mitigation |
+| **Focus** | Stabilization & Deployment | Hub-and-Spoke UDP Networking | Global Scale & Active Mitigation |
 | **Timeline** | 1-2 Months | 6-9 Months | 1.5 - 2 Years |
-| **Core Feature** | Silent USB Blocking | Star-Mesh & Failover Syncing | Kernel Driver & Network Isolation |
-| **Management** | Individual Nodes | Plant-Level Dashboard | Global SOC Console |
-| **Highest Risk** | Update Maintenance Overhead | PKI/Certificate Management | False Positives Haulting Production |
+| **Core Feature** | Silent USB Blocking | Star Node UDP Announcements | Kernel Driver & Network Isolation |
+| **Management** | Individual Nodes | Centralized Hub (Star Node) | Global SOC Console |
+| **Highest Risk** | Update Maintenance Overhead | Single Point of Failure (SPOF) | False Positives Halting Production |

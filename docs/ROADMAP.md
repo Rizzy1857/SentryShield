@@ -44,6 +44,16 @@ This document outlines the strategic vision and upcoming milestones for the Sent
 * **Sneakernet Syncing:** Build an automated export capability that allows operators to dump the local threat mesh database to a secure USB, walk it to a disconnected subnet, and ingest it safely.
 * **Local Update Server:** Create a localized update distribution server (WSUS-style) inside the factory DMZ that isolated endpoints can poll for the latest YARA rules and CVE databases.
 
+**v2.8 — Stealth Hardware Inventory (Project File Analysis)**
+*Focus: Gaining downstream OT visibility without active network scanning.*
+* **Static Project Parsers:** Develop a new `IDetectionPlugin` to silently parse local PLC project files (e.g., Siemens TIA Portal `.ap16`, Rockwell RSLogix `.acd`) stored on engineering workstations.
+* **Asset Discovery:** Map downstream industrial hardware models, firmware versions, and I/O modules directly into the SentryShield database with zero network disruption.
+
+**v2.9 — Contextual Risk Scoring**
+*Focus: Intelligent triage based on asset criticality.*
+* **Schema Upgrade:** Modify the SQLite schema to include an "Asset Criticality" tag for discovered hardware and software.
+* **Dynamic Scoring Algorithm:** Update the `VulnerabilityMatcher` and WPF dashboard to dynamically elevate or suppress CVSS severity scores based on the specific operational role of the affected machine.
+
 ---
 
 ## 🚀 Phase 3: Distributed Intelligence & Proactive Defense (v3.0 - v3.9)
