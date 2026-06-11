@@ -29,7 +29,7 @@ This document outlines the strategic vision and upcoming milestones for the Sent
 
 ---
 
-## 🛠️ Phase 2.5: Tech Debt & Local Distribution (v2.6 - v2.7)
+## 🛠️ Phase 2.5: Tech Debt & Local Distribution (v2.6 - v2.9)
 *Status: In Progress*
 
 **v2.6 — Tech Debt & UI Polish**

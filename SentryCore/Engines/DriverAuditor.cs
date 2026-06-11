@@ -150,7 +150,7 @@ public class DriverAuditor
                     // DriverDate is in WMI CIM_DATETIME format: "20230615000000.000000+000"
                     DateTime? driverDate = null;
                     var dateStr = obj["DriverDate"]?.ToString();
-                    if (!string.IsNullOrEmpty(dateStr) && dateStr.Length >= 8)
+                    if (dateStr != null && dateStr.Length >= 8)
                     {
                         if (DateTime.TryParseExact(dateStr!.Substring(0, Math.Min(8, dateStr.Length)), "yyyyMMdd",
                             null, System.Globalization.DateTimeStyles.None, out var parsedDate))

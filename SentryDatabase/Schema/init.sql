@@ -110,6 +110,17 @@ CREATE TABLE IF NOT EXISTS trusted_suppliers (
 );
 
 -- ---------------------------------------------------------------------------
+-- Audit log (tracks sneakernet threat imports)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS audit_log (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    source_machine   TEXT NOT NULL,
+    records_imported INTEGER DEFAULT 0,
+    bundle_hash      TEXT NOT NULL
+);
+
+-- ---------------------------------------------------------------------------
 -- Indexes for query performance
 -- ---------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_vuln_product    ON vulnerabilities(product_name);

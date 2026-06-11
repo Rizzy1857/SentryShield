@@ -72,6 +72,7 @@ if ($isLegacy) {
         Write-Host "--> Cleaning up old processes..." -ForegroundColor DarkGray
         Stop-Process -Name SentryService -ErrorAction SilentlyContinue -Force
         Stop-Process -Name SentryUI -ErrorAction SilentlyContinue -Force
+        Stop-Process -Name SentryUpdate -ErrorAction SilentlyContinue -Force
         
         Write-Host ""
         Write-Host "--> Building SentryService and SentryUI..." -ForegroundColor Cyan
@@ -84,6 +85,13 @@ if ($isLegacy) {
             Write-Host "Build failed for SentryShield solution." -ForegroundColor Red
             exit $LASTEXITCODE
         }
+        
+        Write-Host "  Building SentryUpdate..." -ForegroundColor DarkGray
+        dotnet build SentryUpdate/SentryUpdate.csproj --configuration Debug
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Build failed for SentryUpdate." -ForegroundColor Red
+            exit $LASTEXITCODE
+        }
     }
 
     if (-not $BuildOnly) {
@@ -91,6 +99,8 @@ if ($isLegacy) {
         Write-Host "--> Launching Modern Services..." -ForegroundColor Green
         # Start Service headless
         Start-Process "SentryService\bin\Debug\net10.0-windows\SentryService.exe" -WindowStyle Hidden
+        # Start Update Server
+        Start-Process "SentryUpdate\bin\Debug\net10.0-windows\SentryUpdate.exe" -WindowStyle Normal
         # Start UI and capture output (blocks the console so we can see errors)
         Write-Host "Running SentryUI via dotnet run..." -ForegroundColor Cyan
         dotnet run --project SentryUI/SentryUI.csproj --no-build --framework net10.0-windows

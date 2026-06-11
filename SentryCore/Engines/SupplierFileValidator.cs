@@ -247,7 +247,7 @@ public class SupplierFileValidator
                 if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(version))
                     continue;
 
-                var vulnsTask = Task.Run(() => InvokeVulnerabilityPluginAsync(name, version));
+                var vulnsTask = Task.Run(() => InvokeVulnerabilityPluginAsync(name!, version!));
                 var vulns = vulnsTask.GetAwaiter().GetResult();
                 
                 if (vulns.Count > 0)
@@ -283,7 +283,7 @@ public class SupplierFileValidator
                 if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(version))
                     continue;
 
-                var vulnsTask = Task.Run(() => InvokeVulnerabilityPluginAsync(name, version));
+                var vulnsTask = Task.Run(() => InvokeVulnerabilityPluginAsync(name!, version!));
                 var vulns = vulnsTask.GetAwaiter().GetResult();
                 
                 if (vulns.Count > 0)

@@ -24,6 +24,7 @@ public class SentryWorker : BackgroundService
     private readonly PluginLoader _pluginLoader;
     private readonly PathOptions _pathOptions;
     private readonly DatabaseIntegrityValidator _dbValidator;
+    private readonly UpdatePoller _updatePoller;
 
     // Last run timestamps for interval management
     private DateTime _lastVulnScan = DateTime.MinValue;
@@ -36,7 +37,8 @@ public class SentryWorker : BackgroundService
         IOptions<PathOptions> pathOptions,
         GatewayFolderWatcher gatewayWatcher,
         ScanHistoryDb historyDb,
-        PluginLoader pluginLoader)
+        PluginLoader pluginLoader,
+        UpdatePoller updatePoller)
     {
         _logger = logger;
         _scanOptions = scanOptions.Value;
@@ -45,6 +47,7 @@ public class SentryWorker : BackgroundService
         _historyDb = historyDb;
         _pluginLoader = pluginLoader;
         _dbValidator = new DatabaseIntegrityValidator(logger);
+        _updatePoller = updatePoller;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -66,6 +69,9 @@ public class SentryWorker : BackgroundService
 
         // Start file system watcher for gateway folder
         _gatewayWatcher.Start();
+
+        // Start network update poller (runs securely in the background)
+        _ = _updatePoller.StartAsync(stoppingToken);
 
         // Main orchestration loop — runs every minute, checks intervals
         while (!stoppingToken.IsCancellationRequested)
