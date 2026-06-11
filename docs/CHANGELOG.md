@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v2.6.0] — 2026-06-11
+
+### Added
+- **Centralized Versioning** — Introduced `Directory.Build.props` at the repository root to globally manage MSBuild `Version` (v2.6.0) and `Product` properties across all `.csproj` files seamlessly.
+- **Hardware Telemetry on UI** — Physical SMBIOS Hardware Hash is now generated securely via WMI (`Win32_BIOS`) and surfaced dynamically in the `SentryUI` Dashboard under the Machine Name to instantly verify hardware identity.
+- **Dynamic Plugin Telemetry** — The Settings UI now actively reflects the loaded plugins, providing users an instant view of all active architectural extensions.
+
+### Changed
+- **Unified Architecture Target** — Fully migrated the entire `.sln` and all related plugins/services from `.NET 8` to `.NET 10.0-windows` (`net10.0-windows`).
+- **Build System Fixes** — Overhauled `build_and_run.ps1` to natively compile the entire `SentryShield.sln` to correctly build detached plugins with `<ReferenceOutputAssembly>false</ReferenceOutputAssembly>`.
+
+### Fixed
+- **C# 12 Strict Compliance** — Resolved all final nullable reference type (`?`) compiler warnings in `VulnerabilityMatcher.cs` and `IDSPluginTests.cs` to ensure absolute strict C# compliance.
+- **Legacy Framework Target Fix** — Fixed the `net48` legacy target build error for `SentryPlugin.Abstractions` by forcing `<LangVersion>latest</LangVersion>` to permit C# 12 features on the older framework target.
+- **UI Version Binding** — Patched `SettingsView.xaml` and `MainWindow.xaml` to dynamically bind to the Reflection-generated `AppVersion` and `AppName` rather than containing hardcoded version text.
+
+---
+
 ## [v2.5-stable] — 2026-06-09
 
 ### Added — Deep System Integrity
