@@ -39,9 +39,20 @@ SentryShield is an **offline-first, lightweight security monitoring system** for
 
 ---
 
+## Phase 3: Star-Mesh Architecture (Upcoming v3.0)
+
+To transition from a host-based standalone agent into an offline-first distributed network, SentryShield is adopting a **Resilient Star-Mesh Architecture**:
+
+1. **Star Node Authority**: A primary Centralized Management Console (CMC) or dedicated "Star Node" acts as the source of truth for YARA rules, CVE updates, and policy distribution.
+2. **mDNS/UDP Fallback**: In the event of a severed network connection to the Star Node, endpoints fallback to local subnet broadcasts to locate surviving peer neighbors using cached routing tables.
+3. **Monotonic Validation**: Because ICS environments are highly susceptible to clock drift, all threat data is synchronized using strict **Monotonic Sequence Numbers** (e.g., `Intelligence_v1042`) backed by cryptographic signatures, entirely replacing timestamp reconciliation.
+4. **Thundering Herd Protection**: Endpoints attempting to reconnect to a recovering Star Node utilize exponential backoff combined with randomized jitter to prevent accidental DDoS floods.
+
+---
+
 ## Component Responsibilities
 
-### SentryService — C# .NET 8 Worker Service
+### SentryService — C# .NET 10 Worker Service
 - **Lifecycle**: Registered as a Windows service (`sc create SentryShield`)
 - **SentryWorker**: Background polling loop; triggers scans on configurable interval
 - **ProcessRunner** (`IPC/ProcessRunner.cs`): Spawns Python subprocesses, captures JSON stdout, kills on 120s timeout
@@ -72,12 +83,13 @@ SentryShield is an **offline-first, lightweight security monitoring system** for
 | `yara_scanner.py` | Compiles `.yar` rules, scans files/dirs, outputs JSON to stdout |
 | `ioc_populate.py` | MalwareBazaar API + embedded ICS/OT threat hashes |
 
-### SentryUI — WPF .NET 8 Dashboard
-- Dark industrial design system (`Resources/Styles.xaml`)
-- MVVM: `DashboardViewModel` with `INotifyPropertyChanged`, 30-second auto-refresh
+### SentryUI — WPF .NET 10 Dashboard
+- **Dark industrial design system** (`Resources/Styles.xaml`)
+- **MVVM**: `DashboardViewModel` with `INotifyPropertyChanged`, 30-second auto-refresh
 - **Findings tab**: Sortable `DataGrid`, severity badges, type/severity filters, acknowledge button
 - **Gateway tab**: Validation log — ALLOW/BLOCK/WARN/PENDING per file
 - **Settings tab**: Scan schedule, gateway toggles, DB path
+- **Star-Mesh Telemetry (Upcoming)**: Visualization of Star Node health, current failover state, and active Intelligence Sequence Number.
 - **Export**: JSON export via `SaveFileDialog`
 
 ---

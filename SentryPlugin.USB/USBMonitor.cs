@@ -118,7 +118,7 @@ namespace SentryShield.Plugin.USB
 
         private void SetGlobalUsbWriteProtect(bool enable)
         {
-            if (!OperatingSystem.IsWindows()) return;
+            if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)) return;
             try
             {
                 using var key = Registry.LocalMachine.CreateSubKey(@"SYSTEM\CurrentControlSet\Control\StorageDevicePolicies");
@@ -133,7 +133,7 @@ namespace SentryShield.Plugin.USB
 
         private void LockDriveExecution(string drivePath)
         {
-            if (!OperatingSystem.IsWindows()) return;
+            if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)) return;
             try
             {
                 var dInfo = new DirectoryInfo(drivePath);
@@ -151,7 +151,7 @@ namespace SentryShield.Plugin.USB
 
         private void UnlockDriveExecution(string drivePath)
         {
-            if (!OperatingSystem.IsWindows()) return;
+            if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)) return;
             try
             {
                 var dInfo = new DirectoryInfo(drivePath);
@@ -169,7 +169,7 @@ namespace SentryShield.Plugin.USB
 
         private void ShowToastNotification(string title, string message)
         {
-            if (!OperatingSystem.IsWindows()) return;
+            if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)) return;
             try
             {
                 System.Diagnostics.EventLog.WriteEntry(

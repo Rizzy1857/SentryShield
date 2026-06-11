@@ -76,21 +76,12 @@ if ($isLegacy) {
         Write-Host ""
         Write-Host "--> Building SentryService and SentryUI..." -ForegroundColor Cyan
         
-        Write-Host "  Cleaning SentryService..." -ForegroundColor DarkGray
-        dotnet clean SentryService/SentryService.csproj --configuration Debug --framework net10.0-windows --nologo -v q
+        Write-Host "  Cleaning solution..." -ForegroundColor DarkGray
+        dotnet clean SentryShield.sln --configuration Debug --nologo -v q
         
-        dotnet build SentryService/SentryService.csproj --configuration Debug --framework net10.0-windows
+        dotnet build SentryShield.sln --configuration Debug
         if ($LASTEXITCODE -ne 0) {
-            Write-Host "Build failed for SentryService." -ForegroundColor Red
-            exit $LASTEXITCODE
-        }
-
-        Write-Host "  Cleaning SentryUI..." -ForegroundColor DarkGray
-        dotnet clean SentryUI/SentryUI.csproj --configuration Debug --framework net10.0-windows --nologo -v q
-
-        dotnet build SentryUI/SentryUI.csproj --configuration Debug --framework net10.0-windows
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Build failed for SentryUI." -ForegroundColor Red
+            Write-Host "Build failed for SentryShield solution." -ForegroundColor Red
             exit $LASTEXITCODE
         }
     }

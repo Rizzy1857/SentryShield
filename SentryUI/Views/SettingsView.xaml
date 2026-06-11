@@ -228,6 +228,46 @@
                 </StackPanel>
             </Border>
 
+            <!-- ─── Loaded Plugins (Telemetry) ─── -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <StackPanel.Resources>
+                        <Style TargetType="{x:Type FrameworkElement}">
+                            <Setter Property="Margin" Value="0,0,0,12"/>
+                        </Style>
+                    </StackPanel.Resources>
+
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="LOADED PLUGINS" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Refresh List" Command="{Binding RefreshPluginsCommand}" FontSize="11" Padding="8,4" Margin="0"/>
+                    </Grid>
+
+                    <Border Background="{StaticResource BrushBgDeep}"
+                            BorderBrush="{StaticResource BrushBorder}"
+                            BorderThickness="1" CornerRadius="6"
+                            Padding="12" MinHeight="60">
+                        <ItemsControl ItemsSource="{Binding LoadedPlugins}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="220" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Name}" Foreground="{StaticResource BrushTextPrimary}" FontWeight="SemiBold" FontSize="12" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Version, StringFormat='v{0}'}" Foreground="{StaticResource BrushTextMuted}" FontFamily="Consolas" FontSize="11" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </StackPanel>
+            </Border>
+
             <!-- ─── About ─── -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>
@@ -238,14 +278,16 @@
                     </StackPanel.Resources>
                     <TextBlock Text="ABOUT"
                                Style="{StaticResource H2}"/>
-                    <TextBlock FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,4">
-                        <Run Text="SentryShield v1.2-stable" FontWeight="SemiBold"/>
-                        <LineBreak/>
-                        <Run Text="— Manufacturing Security Console"/>
-                    </TextBlock>
+                    <StackPanel Margin="0,0,0,4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding AppName}" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,4,0"/>
+                            <TextBlock Text="{Binding AppVersion}" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource BrushTextMuted}"/>
+                        </StackPanel>
+                        <TextBlock Text="— Manufacturing Security Console" FontSize="12" Foreground="{StaticResource BrushTextMuted}"/>
+                    </StackPanel>
                     <TextBlock Text="Offline-first security monitoring for ICS/OT environments."
                                Foreground="{StaticResource BrushTextMuted}" FontSize="11"/>
-                    <TextBlock Text="Target: Windows 10/11 | .NET 8 | SQLite 3"
+                    <TextBlock Text="Target: Windows 10/11 | .NET 10 | SQLite 3"
                                Foreground="{StaticResource BrushTextMuted}" FontSize="11"
                                FontFamily="Consolas"/>
                 </StackPanel>

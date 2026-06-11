@@ -35,12 +35,12 @@ This path elevates SentryShield from an isolated endpoint tool to a networked, i
 
 * **Investment Level**: 3-4 FTEs (1 Architect, 2 Software Engineers, 1 SecOps Analyst), 6-9 Months, ~$150k–$250k.
 * **What Gets Built or Hardened**:
-  * **MeshPlugin (P2P Threat Syncing)**: Implementing an mDNS/UDP gossip protocol over the local factory LAN. If a machine detects a malicious hash, it broadcasts the IOC to all peers locally without needing an internet connection.
-  * **Centralized Plant Dashboard**: A lightweight, on-premise centralized dashboard for the Shift Supervisor to view the health and threat status of all nodes in the building.
-  * **Air-gapped Update Distribution**: Creating a localized update server (similar to WSUS) inside the factory DMZ that endpoints poll for new YARA rules and CVE databases.
+  * **Resilient Star-Mesh Architecture**: Deploying a Centralized Management Console (CMC) as a "Star Node" acting as the authoritative source for intelligence. Integrating an mDNS/UDP local broadcast fallback allowing nodes to automatically locate surviving peers and sync data during severed network links.
+  * **Centralized Management Console (CMC)**: A lightweight, on-premise dashboard for Shift Supervisors to push unified policies, YARA rules, and view the health of the entire factory node mesh.
+  * **Monotonic Sequence Validation**: Enforcing strict Monotonic Sequence Numbers (e.g., `Intelligence_v1042`) accompanied by cryptographic signatures to safely reconcile decentralized threat intelligence without relying on unpredictable ICS network clocks.
 * **What it looks like to a Plant Operator**: 
-  * The Shift Supervisor has a single monitor showing a map of the factory floor's endpoint health. 
-  * If a rogue firmware update is blocked on Line 1, Line 2 is instantly inoculated against the same hash. The system feels alive and collaborative.
+  * The Shift Supervisor uses the CMC to monitor factory floor endpoint health. 
+  * If a rogue firmware update is blocked on Line 1, the CMC instantly pushes the IOC to Line 2. If the CMC goes offline, Line 1 gossips the hash directly to Line 2 via the Star-Mesh fallback. The system remains strictly resilient.
 * **Key Risks**:
   * **Network Noise**: Gossip protocols in noisy OT environments require careful tuning to prevent network storms.
   * **Authentication**: Securing P2P communication requires mTLS, which introduces the heavy burden of managing PKI (Public Key Infrastructure) and certificate rotation in an air-gapped environment.
@@ -74,6 +74,6 @@ This path scales SentryShield into a tier-1, enterprise-grade OT security platfo
 | :--- | :--- | :--- | :--- |
 | **Focus** | Stabilization & Deployment | Local Connectivity & Automation | Global Scale & Active Mitigation |
 | **Timeline** | 1-2 Months | 6-9 Months | 1.5 - 2 Years |
-| **Core Feature** | Silent USB Blocking | P2P Threat Sharing | Kernel Driver & Network Isolation |
+| **Core Feature** | Silent USB Blocking | Star-Mesh & Failover Syncing | Kernel Driver & Network Isolation |
 | **Management** | Individual Nodes | Plant-Level Dashboard | Global SOC Console |
 | **Highest Risk** | Update Maintenance Overhead | PKI/Certificate Management | False Positives Haulting Production |

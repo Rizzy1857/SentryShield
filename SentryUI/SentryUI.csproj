@@ -40,11 +40,11 @@
 
   <Target Name="CopyPlugins" AfterTargets="Build">
     <ItemGroup>
-      <PluginFiles Include="..\SentryPlugin.Firmware\bin\$(Configuration)\net8.0-windows\**\*.*" />
-      <PluginFiles Include="..\SentryPlugin.Vulnerability\bin\$(Configuration)\net8.0-windows\**\*.*" />
-      <PluginFiles Include="..\SentryPlugin.USB\bin\$(Configuration)\net8.0-windows\**\*.*" />
-      <PluginFiles Include="..\SentryPlugin.IDS\bin\$(Configuration)\net8.0-windows\**\*.*" />
-      <PluginFiles Include="..\SentryPlugin.Remediation\bin\$(Configuration)\net8.0-windows\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.Firmware\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.Vulnerability\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.USB\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.IDS\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.Remediation\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
       <PluginFiles Remove="..\**\SentryPlugin.Abstractions.dll" />
       <PluginFiles Remove="..\**\SentryPlugin.Abstractions.pdb" />
       <PluginFiles Remove="..\**\Microsoft.Extensions.Logging.Abstractions.dll" />

@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <Version>2.6.0</Version>
+    <Product>SentryShield</Product>
+    <Company>SentryShield</Company>
+  </PropertyGroup>
+</Project>

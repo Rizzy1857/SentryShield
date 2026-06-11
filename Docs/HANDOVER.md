@@ -18,9 +18,9 @@ The system is divided into four pillars: Vulnerability Matching, USB Threat Dete
 ## Known Limitations & Remaining Work
 For the team taking over `v3.0` and beyond, be aware of the following:
 
-1. **Distributed Syncing (Phase 3):** The `MeshPlugin` (Gossip protocol) is explicitly NOT built. Implementing mTLS mutual authentication in an air-gapped factory will require significant PKI infrastructure design.
+1. **Distributed Syncing (Phase 3):** The **Resilient Star-Mesh Architecture** (Star Node authoritative updates, mDNS/UDP fallback, Monotonic Sequence Validation) is explicitly NOT built. Implementing mTLS mutual authentication and conflict-free data replication in an air-gapped factory will require significant PKI infrastructure design.
 2. **Nullable Warnings:** There are a few remaining nullable reference type warnings (e.g., in `IDSPluginTests.cs` and `VulnerabilityMatcher.cs`) that should be cleaned up for strict C# 12 compliance.
-3. **Target Frameworks:** `SentryCore.csproj` currently targets `net8.0-windows`. If the testing infrastructure entirely moves to `net10.0-windows`, ensure `SentryCore.csproj` is updated to reflect this to avoid NU1702 warnings.
+3. **Target Frameworks:** The solution has fully migrated to `net10.0-windows` (from `.NET 8`). Ensure the testing infrastructure remains aligned to avoid NU1702 warnings.
 4. **UI Refinements:** 
    - Display the loaded plugins and their versions in the Settings view.
    - Surface the `SMBIOS` hash directly on the UI dashboard (it currently logs in the background but is not visualized).

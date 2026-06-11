@@ -54,11 +54,11 @@
     <ItemGroup>
       <!-- Copy the plugin DLL + ALL its dependencies (SharpPcap, PacketDotNet, SQLite, etc.)
            so PluginLoadContext's AssemblyDependencyResolver can find every transitive dep. -->
-      <PluginFiles Include="..\SentryPlugin.Firmware\bin\$(Configuration)\net8.0-windows\**\*.*" />
-      <PluginFiles Include="..\SentryPlugin.Vulnerability\bin\$(Configuration)\net8.0-windows\**\*.*" />
-      <PluginFiles Include="..\SentryPlugin.USB\bin\$(Configuration)\net8.0-windows\**\*.*" />
-      <PluginFiles Include="..\SentryPlugin.IDS\bin\$(Configuration)\net8.0-windows\**\*.*" />
-      <PluginFiles Include="..\SentryPlugin.Remediation\bin\$(Configuration)\net8.0-windows\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.Firmware\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.Vulnerability\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.USB\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.IDS\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
+      <PluginFiles Include="..\SentryPlugin.Remediation\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
       <!-- Exclude the shared contract so the host's copy is always used -->
       <PluginFiles Remove="..\**\SentryPlugin.Abstractions.dll" />
       <PluginFiles Remove="..\**\SentryPlugin.Abstractions.pdb" />

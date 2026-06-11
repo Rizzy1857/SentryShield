@@ -35,7 +35,7 @@ namespace SentryShield.Tests
                 .Callback(new InvocationAction(invocation =>
                 {
                     var state = invocation.Arguments[2];
-                    _loggedAlerts.Add(state.ToString());
+                    _loggedAlerts.Add(state?.ToString() ?? string.Empty);
                 }));
 
             var context = new PluginContext(_mockLogger.Object, "dummy.db");

@@ -11,11 +11,11 @@
 ### Windows Machine (dev / target)
 - Windows 10 / 11 (64-bit) — or Windows Server 2019+
 - Administrator rights (for service install, WMI, Event Log)
-- .NET 8 SDK: https://dotnet.microsoft.com/download/dotnet/8.0
+- .NET 10 SDK: https://dotnet.microsoft.com/download/dotnet/10.0
 - Python 3.11: https://www.python.org/downloads/
 - Visual Studio 2022+ (or VS Code with C# extension)
 
-> ⚠️ **Windows 7 Note**: .NET 8 does not support Windows 7. For Win7 HMIs, the service must be recompiled targeting .NET Framework 4.8. See `Docs/WIN7_COMPAT.md` (v2.0).
+> ⚠️ **Windows 7 Note**: .NET 10 does not support Windows 7. For Win7 HMIs, the service must be recompiled targeting .NET Framework 4.8. See `Docs/WIN7_COMPAT.md` (v2.0).
 
 ---
 
@@ -37,7 +37,7 @@ cd SentryPython
 python -m venv venv
 venv\Scripts\activate
 
-pip install yara-python requests pytest
+pip install yara-python pytest
 ```
 
 > `schedule` is only needed if running `db_sync.py` in daemon mode (not needed in development).

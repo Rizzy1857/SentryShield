@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Reflection;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
@@ -50,9 +51,11 @@ public class DashboardViewModel : INotifyPropertyChanged
         SyncDatabaseCommand = new RelayCommand(async () => await SyncDatabaseAsync(), () => IsNotScanning);
         OpenDbFolderCommand = new RelayCommand(OpenDbFolder);
         CopyLogsCommand = new RelayCommand(CopyLogs);
+        RefreshPluginsCommand = new RelayCommand(RefreshPlugins);
 
         // Initial data load
         _ = RefreshAsync();
+        RefreshPlugins();
 
         // Auto-refresh every 30 seconds
         var timer = new System.Windows.Threading.DispatcherTimer
@@ -61,6 +64,8 @@ public class DashboardViewModel : INotifyPropertyChanged
         };
         timer.Tick += async (_, _) => await RefreshAsync();
         timer.Start();
+
+        LoadHardwareHash();
     }
 
     // -------------------------------------------------------------------------
@@ -183,7 +188,19 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     public ObservableCollection<string> SyncLogs { get; } = new ObservableCollection<string> { "Terminal initialized..." };
 
+    public ObservableCollection<PluginTelemetryInfo> LoadedPlugins { get; } = new();
+
     public string MachineName { get; } = Environment.MachineName;
+
+    public string AppVersion { get; } = $"v{Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "2.6.0"}";
+    public string AppName { get; } = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyProductAttribute>()?.Product?.ToUpperInvariant() ?? "SENTRYSHIELD";
+
+    private string _hardwareHash = "Computing...";
+    public string HardwareHash
+    {
+        get => _hardwareHash;
+        set { _hardwareHash = value; OnPropertyChanged(); }
+    }
 
     // Status dot color: green if 0 critical, orange if high, red if critical
     public System.Windows.Media.Color StatusColor =>
@@ -206,6 +223,7 @@ public class DashboardViewModel : INotifyPropertyChanged
     public ICommand SyncDatabaseCommand { get; }
     public ICommand OpenDbFolderCommand { get; }
     public ICommand CopyLogsCommand { get; }
+    public ICommand RefreshPluginsCommand { get; }
 
     // -------------------------------------------------------------------------
     // Data operations
@@ -485,6 +503,35 @@ public class DashboardViewModel : INotifyPropertyChanged
         }
     }
 
+    private void RefreshPlugins()
+    {
+        try
+        {
+            LoadedPlugins.Clear();
+            var logger = new NullLogger();
+            var appDir = AppDomain.CurrentDomain.BaseDirectory;
+            var pluginLoader = new SentryShield.Core.PluginLoader(logger, LoadDbPath());
+            var pluginsDir = System.IO.Path.Combine(appDir, "Plugins");
+            if (System.IO.Directory.Exists(pluginsDir))
+            {
+                pluginLoader.LoadPlugins(pluginsDir);
+            }
+            
+            foreach (var plugin in pluginLoader.GetPlugins())
+            {
+                LoadedPlugins.Add(new PluginTelemetryInfo 
+                { 
+                    Name = plugin.Name, 
+                    Version = plugin.Version 
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to refresh plugins: {ex.Message}");
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -512,6 +559,40 @@ public class DashboardViewModel : INotifyPropertyChanged
         return defaultPath;
     }
 
+    private void LoadHardwareHash()
+    {
+        try
+        {
+            if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+            {
+                HardwareHash = "Unsupported OS";
+                return;
+            }
+
+            using var searcher = new System.Management.ManagementObjectSearcher("SELECT * FROM Win32_BIOS");
+            foreach (System.Management.ManagementObject obj in searcher.Get())
+            {
+                var smbiosVersion = obj["SMBIOSBIOSVersion"]?.ToString() ?? "";
+                var serialNumber = obj["SerialNumber"]?.ToString() ?? "";
+                var rawStr = smbiosVersion + serialNumber;
+                
+                if (!string.IsNullOrEmpty(rawStr))
+                {
+                    using var sha256 = System.Security.Cryptography.SHA256.Create();
+                    var hashBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawStr));
+                    HardwareHash = BitConverter.ToString(hashBytes).Replace("-", "").Substring(0, 16).ToLowerInvariant();
+                    return;
+                }
+            }
+            HardwareHash = "Not Found";
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[WMI] Failed to get SMBIOS hash: {ex.Message}");
+            HardwareHash = "Access Denied";
+        }
+    }
+
     // -------------------------------------------------------------------------
     // INotifyPropertyChanged
     // -------------------------------------------------------------------------
@@ -520,6 +601,12 @@ public class DashboardViewModel : INotifyPropertyChanged
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+}
+
+public class PluginTelemetryInfo
+{
+    public string Name { get; set; } = string.Empty;
+    public string Version { get; set; } = string.Empty;
 }
 
 // ─────────────────────────────────────────────────────
