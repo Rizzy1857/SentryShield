@@ -1,4 +1,4 @@
-# SentryShield v2.5-stable — Architecture
+# SentryShield v2.7.0 — Architecture
 
 ## Overview
 
@@ -39,14 +39,14 @@ SentryShield is an **offline-first, lightweight security monitoring system** for
 
 ---
 
-## Phase 3: Star-Mesh Architecture (Upcoming v3.0)
+## Phase 3: Hub-and-Spoke (UDP Push) Architecture (Upcoming v3.0)
 
-To transition from a host-based standalone agent into an offline-first distributed network, SentryShield is adopting a **Resilient Star-Mesh Architecture**:
+To transition from a host-based standalone agent into an offline-first distributed network, SentryShield is adopting a **Hub-and-Spoke (UDP Push) Architecture**:
 
-1. **Star Node Authority**: A primary Centralized Management Console (CMC) or dedicated "Star Node" acts as the source of truth for YARA rules, CVE updates, and policy distribution.
-2. **mDNS/UDP Fallback**: In the event of a severed network connection to the Star Node, endpoints fallback to local subnet broadcasts to locate surviving peer neighbors using cached routing tables.
-3. **Monotonic Validation**: Because ICS environments are highly susceptible to clock drift, all threat data is synchronized using strict **Monotonic Sequence Numbers** (e.g., `Intelligence_v1042`) backed by cryptographic signatures, entirely replacing timestamp reconciliation.
-4. **Thundering Herd Protection**: Endpoints attempting to reconnect to a recovering Star Node utilize exponential backoff combined with randomized jitter to prevent accidental DDoS floods.
+1. **Star Node Authority**: A primary Centralized Management Console (CMC) or dedicated "Star Node" acts as the absolute source of truth for YARA rules, CVE updates, and policy distribution.
+2. **Lean Edge Nodes**: Endpoints silently listen on a dedicated port for lightweight UDP broadcast announcements from the Star Node. Once an update is announced, nodes perform secure TCP pulls to download updates locally. This eliminates the need for complex P2P routing and heavy mTLS PKI management.
+3. **Monotonic Validation**: Because ICS environments are highly susceptible to clock drift, all threat data is synchronized using strict **Monotonic Sequence Numbers** (e.g., `Intelligence_v1042`) backed by cryptographic signatures to verify UDP announcements.
+4. **Sneakernet Fallback**: For completely disconnected subnets, operators can securely export the local threat database to a USB drive (`SneakernetExporter`) and ingest it manually (`SneakernetImporter`).
 
 ---
 
@@ -57,6 +57,7 @@ To transition from a host-based standalone agent into an offline-first distribut
 - **SentryWorker**: Background polling loop; triggers scans on configurable interval
 - **ProcessRunner** (`IPC/ProcessRunner.cs`): Spawns Python subprocesses, captures JSON stdout, kills on 120s timeout
 - **GatewayFolderWatcher** (`Watchers/`): `FileSystemWatcher` on `C:\SentryShield\Downloads\<SupplierName>\`; 2-second debounce before validation; quarantines blocked files
+- **UpdatePoller**: Periodically polls the local DMZ `SentryUpdate` server for new YARA rules and CVE databases.
 
 ### SentryCore — C# Detection Library
 | Engine | Key Logic |
@@ -71,7 +72,12 @@ To transition from a host-based standalone agent into an offline-first distribut
 ### SentryDatabase — C# SQLite DAL
 - SQLite 3 in WAL mode for concurrent read/write
 - `DatabaseInitializer.cs` loads `Schema/init.sql` as an embedded resource on first start
-- 7 tables, 9 performance indexes (see Schema section below)
+- 8 tables, 9 performance indexes (see Schema section below)
+- `SneakernetExporter` / `SneakernetImporter` for air-gapped threat syncing
+
+### SentryUpdate — C# Local Update Server (WSUS-Style)
+- **Lifecycle**: Standalone HTTP daemon running in the factory DMZ.
+- **Function**: Distributes the latest YARA rules and CVE databases to isolated SentryShield endpoints polling via `UpdatePoller`.
 
 ### SentryPython — Python 3.11 Scripts
 | Script | Purpose |
@@ -232,6 +238,8 @@ gateway_files   (id PK, filename, supplier_name, file_hash, file_size,
 
 trusted_suppliers (id PK, supplier_name UNIQUE, contact_email,
                    is_active, added_date)
+
+audit_log       (id PK, timestamp, source_machine, records_imported, bundle_hash)
 
 schema_version  (version PK, applied_at, notes)
 ```

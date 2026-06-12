@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v2.7.0] — 2026-06-11
+
+### Added
+- **Sneakernet Syncing (Air-Gapped Import/Export)** — Added `SneakernetExporter` and `SneakernetImporter` to securely export the local threat database to a USB drive and ingest it on isolated factory subnets. Includes a new `audit_log` SQLite table to track imports by source machine and bundle hash.
+- **Local Update Server (WSUS-Style)** — Created a standalone `SentryUpdate` distribution server for the factory DMZ. Endpoints now use `UpdatePoller` to automatically pull the latest YARA rules and CVE databases locally.
+- **Hub-and-Spoke Architecture Docs** — Updated `PRODUCTION_PATHWAYS.md` to transition from peer-to-peer Star-Mesh to a Hub-and-Spoke (UDP Push) topology.
+- **Roadmap Expansion** — Added v2.8 (Stealth Hardware Inventory via PLC project parsing) and v2.9 (Contextual Risk Scoring) to the strategic roadmap.
+
+### Fixed
+- **Strict Nullability Enhancements** — Resolved remaining C# nullable warnings in `SupplierFileValidator.cs`, `VulnerabilityMatcher.cs`, and `DriverAuditor.cs` for stricter type safety.
+
+---
+
 ## [v2.6.0] — 2026-06-11
 
 ### Added

@@ -1,4 +1,4 @@
-# SentryShield v1.0 — Setup Guide
+# SentryShield v2.7.0 — Setup Guide
 
 > This guide covers two audiences:
 > - **Developer / Intern** — Sections 1–6 (build, test, dev mode)
@@ -216,7 +216,25 @@ xcopy SentryPython C:\SentryShield\scripts\ /E /I
 
 ---
 
-## 11. Set Up Nightly Database Sync (Task Scheduler)
+## 11. Optional: Local Update Server (v2.7.0)
+
+If your endpoints are fully air-gapped, you can run the `SentryUpdate` distribution server in your DMZ.
+```cmd
+:: Build and install the update server
+dotnet publish SentryUpdate -c Release -r win-x64 --self-contained false -o C:\SentryShield\bin
+sc create SentryUpdate binPath= "C:\SentryShield\bin\SentryUpdate.exe" start= auto DisplayName= "SentryShield Local Update Server"
+sc start SentryUpdate
+```
+
+## 12. Optional: Sneakernet Syncing (v2.7.0)
+
+For environments completely disconnected from the DMZ, operators can export and import the database manually via USB.
+1. Run `SneakernetExporter.ExportToUsb("E:\")` on the source machine.
+2. Run `SneakernetImporter.ImportFromUsb("E:\")` on the target machine.
+
+---
+
+## 13. Set Up Nightly Database Sync (Task Scheduler)
 
 SentryShield updates its vulnerability database nightly by pulling the latest CVEs from NVD and new CERT-In advisories automatically.
 
@@ -251,7 +269,7 @@ setx NVD_API_KEY "your-api-key-here" /M
 
 ---
 
-## 12. Configure Trusted Suppliers
+## 14. Configure Trusted Suppliers
 
 Edit (or create) `C:\ProgramData\SentryShield\trusted_suppliers.json`:
 
@@ -276,7 +294,7 @@ Files dropped into `C:\SentryShield\Downloads\<SupplierName>\` are automatically
 
 ---
 
-## 13. GPO Deployment (50 machines)
+## 15. GPO Deployment (50 machines)
 
 Deploy via Group Policy:
 ```
